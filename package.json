@@ -1,0 +1,34 @@
+{
+  "name": "emscripten_test_folder",
+  "version": "1.0.0",
+  "description": "emcc -s WASM=1 -s SIDE_MODULE=1 -O2 str.c -o str.js wasm-dis str.wasm -o str.wast",
+  "main": "a.out.js",
+  "scripts": {
+    "build:codec": "em++ envTest.c -Os -s WASM=1 -s SIDE_MODULE=1 -o envTest.wasm",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "echo": "echo 'rebuild'",
+    "build:bundle": "webpack --watch",
+    "build": "npm run build:codec && npm run build:bundle",
+    "serve": "http-server --experimental-wasi-unstable-preview1",
+    "start": "npm run build && npm run serve"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "fs": "0.0.1-security",
+    "http-server": "^13.0.1",
+    "node-fetch": "^2.6.1",
+    "wasi": "0.0.6"
+  },
+  "devDependencies": {
+    "@wasm-tool/wasm-pack-plugin": "^1.5.0",
+    "copy-webpack-plugin": "^9.0.1",
+    "exports-loader": "^3.0.0",
+    "file-loader": "^6.2.0",
+    "hook-shell-script-webpack-plugin": "^0.1.3",
+    "webpack": "^5.51.1",
+    "webpack-cli": "^4.8.0",
+    "webpack-dev-server": "^4.0.0",
+    "webpack-shell-plugin-next": "^2.2.2"
+  }
+}
