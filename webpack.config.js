@@ -11,7 +11,7 @@ const HookShellScriptPlugin = require('hook-shell-script-webpack-plugin');
 const WebpackShellPluginNext = require('webpack-shell-plugin-next');
 
 module.exports = {
-  entry: "./index.js",
+  entry: "./src/index.js",
   output: {
     path: path.resolve(__dirname, "dist"),
     filename: "bundle.js"
@@ -36,14 +36,14 @@ module.exports = {
       //   },
       // wasm files should not be processed but just be emitted and we want
       // to have their public URL.
-      {
-        test: /envTest.wasm$/,
-        type: "javascript/auto",
-        loader: "file-loader",
-        options: {
-          publicPath: "dist/"
-        },
-      },
+      // {
+      //   test: /.wasm$/,
+      //   type: "javascript/auto",
+      //   loader: "file-loader",
+      //   options: {
+      //     publicPath: "dist/"
+      //   },
+      // },
       { test: /\.(wasm|jpe?g|gif|png|svg|woff|ttf|wav|mp3)$/, loader: "file-loader" }
     ]
   },
@@ -53,7 +53,7 @@ module.exports = {
     }),
     new CopyWebpackPlugin({
       patterns: [
-        { from: "*.wasm", to: "./" }
+        { from: "src/*.wasm", to: "./" }
       ]
     }),
     new WebpackShellPluginNext({

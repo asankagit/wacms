@@ -2,9 +2,9 @@
   "name": "emscripten_test_folder",
   "version": "1.0.0",
   "description": "emcc -s WASM=1 -s SIDE_MODULE=1 -O2 str.c -o str.js wasm-dis str.wasm -o str.wast",
-  "main": "a.out.js",
+  "main": "index.js",
   "scripts": {
-    "build:codec": "em++ envTest.c -Os -s WASM=1 -s SIDE_MODULE=1 -o envTest.wasm",
+    "build:codec": "em++ src/envTest.c -Os -s WASM=1 -s SIDE_MODULE=1 -o dist/envTest.wasm",
     "test": "echo \"Error: no test specified\" && exit 1",
     "echo": "echo 'rebuild'",
     "build:bundle": "webpack --watch",
