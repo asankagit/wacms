@@ -44,7 +44,7 @@ module.exports = {
       //     publicPath: "dist/"
       //   },
       // },
-      { test: /\.(wasm|jpe?g|gif|png|svg|woff|ttf|wav|mp3)$/, loader: "file-loader" }
+      // { test: /\.(wasm|jpe?g|gif|png|svg|woff|ttf|wav|mp3)$/, loader: "file-loader" }
     ]
   },
   plugins: [
@@ -53,7 +53,7 @@ module.exports = {
     }),
     new CopyWebpackPlugin({
       patterns: [
-        { from: "src/*.wasm", to: "./" }
+        { from: "src/*.wasm", to: path.resolve(__dirname, "dist/[name].wasm")}
       ]
     }),
     new WebpackShellPluginNext({

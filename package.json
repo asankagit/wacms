@@ -4,7 +4,7 @@
   "description": "emcc -s WASM=1 -s SIDE_MODULE=1 -O2 str.c -o str.js wasm-dis str.wasm -o str.wast",
   "main": "index.js",
   "scripts": {
-    "build:codec": "em++ src/envTest.c -Os -s WASM=1 -s SIDE_MODULE=1 -o dist/envTest.wasm",
+    "build:codec": "em++ src/envTest.c -Os -s WASM=1 -s SIDE_MODULE=1 -o envTest.wasm",
     "test": "echo \"Error: no test specified\" && exit 1",
     "echo": "echo 'rebuild'",
     "build:bundle": "webpack --watch",

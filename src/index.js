@@ -83,21 +83,22 @@ async function loadWebAssembly(filename, imports = {}) {
           },
           _Z10printStrigNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE: (str, ...rest) => {
             console.log("print string callback", str, rest)
-          }
+          },
+          __wbindgen_placeholder__:  x => conosle.log(x)
         })
 
-        const arrayBuffer = imports.env.memory.buffer;
-        const buffer = new Uint8Array(arrayBuffer);
-        console.log("buffer", buffer.filter(i => i !== 0))
+        // const arrayBuffer = imports.env.memory.buffer;
+        // const buffer = new Uint8Array(arrayBuffer);
+        // console.log("buffer", buffer.filter(i => i !== 0))
         // console.log("buffer", buffer[1024])
-        
+        console.log(module)
         const instance = new WebAssembly.Instance(module, imports)
 
-        const { exports: { memory, _Z5helloPc: hello } } = instance
-        console.log({ memory, hello })
-        const array = new Uint8Array(arrayBuffer, 0, 15);
-        hello(array.byteOffset);
-        console.log(new TextDecoder('utf8').decode(array));
+        // const { exports: { memory, _Z5helloPc: hello } } = instance
+        // console.log({ memory, hello })
+        // const array = new Uint8Array(arrayBuffer, 0, 15);
+        // hello(array.byteOffset);
+        // console.log(new TextDecoder('utf8').decode(array));
 
 
         return instance
@@ -119,7 +120,7 @@ async function loadWebAssembly(filename, imports = {}) {
   //   readline.close()
   // })
 
-const wasmfun = loadWebAssembly("asyncify.wasm").then(e => console.log("outter function calling...", e._Z7getSqrtf(16)))
+const wasmfun = loadWebAssembly("wasmAsync.wasm").then(e => console.log("outter function calling...", e._Z7getSqrtf(16)))
 // const  wasmfun_printlogger = loadWebAssembly('envTest.wasm').then(e => console.log("outter function call", e._Z11printLoggeri(["3","s"])))
   console.log(wasmfun)
 
