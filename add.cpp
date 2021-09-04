@@ -10,11 +10,11 @@ int main()
     std::ifstream MyReadFile("readme.txt");
 
     // Use a while loop together with the getline() function to read the file line by line
-    while (std::getline(MyReadFile, myText))
-    {
-        // Output the text from the file
-        std::cout << myText;
-    }
+    // while (std::getline(MyReadFile, myText))
+    // {
+    //     // Output the text from the file
+    //     std::cout << myText;
+    // }
 
     // Close the file
     MyReadFile.close();

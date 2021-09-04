@@ -64,3 +64,19 @@ https://gist.github.com/kripken/59c67556dc03bb6d57052fedef1e61ab
 
   asyncify
   https://web.dev/asyncify/
+
+
+  file system
+  https://emscripten.org/docs/api_reference/Filesystem-API.html?highlight=file%20read
+
+  #include <stdio.h>
+#include <emscripten.h>
+
+int main() {
+  MAIN_THREAD_EM_ASM(
+  FS.writeFile('file', 'foobar');
+  FS.symlink('file', 'link');
+  console.log(FS.readlink('link'));
+  );
+  return 0;
+}

@@ -21,7 +21,7 @@ const wasi = new WASI({
     mylogger: function(urlStr) { return "ok"},
   },
   preopens: {
-    '/sandbox': "./"
+    '/sandbox': "/home/asanka/Documents/learn/webAssemblyPalygroud/wacms/"
   }
 });
 
@@ -38,8 +38,9 @@ async function loadWebAssembly(filename, imports = {}) {
     const wasmInstance = await WebAssembly.compile(fs.readFileSync(filename))
       .then((module) => {
         imports.env = imports.env || {}
+        imports.wasi_snapshot_preview1 = wasi.wasiImport,
         Object.assign(imports.env, {
-          memoryBase: 0,
+          memoryBase: 1024,
           tableBase: 0,
           memory: new WebAssembly.Memory({
             initial: 256,
@@ -107,7 +108,7 @@ async function loadWebAssembly(filename, imports = {}) {
 
      
     console.log(wasmInstance.exports)
-    // wasi.start(wasmInstance)
+    wasi.start(wasmInstance)
     //  return wasmInstance.exports.test(10)
     return wasmInstance.exports
   }
@@ -120,7 +121,7 @@ async function loadWebAssembly(filename, imports = {}) {
   //   readline.close()
   // })
 
-const wasmfun = loadWebAssembly("wasmAsync.wasm").then(e => console.log("outter function calling...", e._Z7getSqrtf(16)))
+const wasmfun = loadWebAssembly("fileRead.wasm").then(e => console.log("outter function calling...", e))
 // const  wasmfun_printlogger = loadWebAssembly('envTest.wasm').then(e => console.log("outter function call", e._Z11printLoggeri(["3","s"])))
   console.log(wasmfun)
 
@@ -130,3 +131,5 @@ const wasmfun = loadWebAssembly("wasmAsync.wasm").then(e => console.log("outter 
 
 // run 
 // node --experimental-wasi-unstable-preview1 envTestWasiRunner.js
+
+// -s WASM_STANDALONE 
