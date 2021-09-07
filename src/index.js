@@ -88,18 +88,19 @@ async function loadWebAssembly(filename, imports = {}) {
           __wbindgen_placeholder__:  x => conosle.log(x)
         })
 
-        // const arrayBuffer = imports.env.memory.buffer;
-        // const buffer = new Uint8Array(arrayBuffer);
-        // console.log("buffer", buffer.filter(i => i !== 0))
-        // console.log("buffer", buffer[1024])
-        console.log(module)
+        const arrayBuffer = imports.env.memory.buffer;
+        const buffer = new Uint8Array(arrayBuffer);
+        console.log("buffer", buffer.filter(i => i !== 0))
+        console.log("buffer", buffer[1024])
+        // console.log(module)
         const instance = new WebAssembly.Instance(module, imports)
 
-        // const { exports: { memory, _Z5helloPc: hello } } = instance
-        // console.log({ memory, hello })
-        // const array = new Uint8Array(arrayBuffer, 0, 15);
+        const { exports: { memory, _Z5helloPc: hello } } = instance
+        console.log({ memory, hello })
+        const array = new Uint8Array(arrayBuffer, 0, 15);
+        console.log({ array })
         // hello(array.byteOffset);
-        // console.log(new TextDecoder('utf8').decode(array));
+        console.log(new TextDecoder('utf8').decode(array));
 
 
         return instance
@@ -107,8 +108,8 @@ async function loadWebAssembly(filename, imports = {}) {
       .catch(e => console.log(e))
 
      
-    console.log(wasmInstance.exports)
-    wasi.start(wasmInstance)
+    console.log("exports", wasmInstance.exports)
+    // wasi.start(wasmInstance)
     //  return wasmInstance.exports.test(10)
     return wasmInstance.exports
   }
@@ -121,7 +122,7 @@ async function loadWebAssembly(filename, imports = {}) {
   //   readline.close()
   // })
 
-const wasmfun = loadWebAssembly("fileRead.wasm").then(e => console.log("outter function calling...", e))
+const wasmfun = loadWebAssembly("strRead.wasm").then(e => console.log("outter function calling...", e))
 // const  wasmfun_printlogger = loadWebAssembly('envTest.wasm').then(e => console.log("outter function call", e._Z11printLoggeri(["3","s"])))
   console.log(wasmfun)
 

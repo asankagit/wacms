@@ -104,3 +104,7 @@ dist
 .tern-port
 
 .wasm
+
+.vscode
+
+tools/templates/**/node_modules

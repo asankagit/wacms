@@ -2,6 +2,7 @@
 #include <string>
 
 
+
 using namespace std;
 
 void consoleLog (float num);
@@ -16,6 +17,7 @@ float getSqrt (float num) {
   return sqrt(num);
 }
 
+
 void hello(char *array) {
     const char* my_string = "Hello from C++!";
     memcpy(array, my_string, strlen(my_string));
@@ -24,3 +26,4 @@ void hello(char *array) {
 
 // https://github.com/guybedford/wasm-intro
 // https://stackoverflow.com/questions/61795187/webassembly-return-string-use-c
+//  need side_module flag

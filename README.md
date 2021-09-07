@@ -1,3 +1,4 @@
+![WAFUZ](wafuz-logo.png)
 # wacms
 WebAssembly Code Management System
 
