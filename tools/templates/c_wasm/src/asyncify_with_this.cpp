@@ -12,11 +12,16 @@ using namespace std;
 //     memcpy(array, my_string, strlen(my_string));
 // }
 
-EM_ASYNC_JS(string, _fetch, (char* url, int size), {
+EM_ASYNC_JS(string, _fetch, (char* memory, int addr), {
 
-  out("waiting for a fetch", url);
+  out("waiting for a fetch", memory);
 
-  
+    let buffer = new Uint8Array(memory.buffer, 0, addr);
+  let term = buffer.indexOf(0);
+
+  const strbuff = new TextDecoder().decode(buffer.subarray(0, term));
+  out(">>", strbuff);
+
   const response = await fetch("http://localhost:8080").then(res => res.buffer())
     .then(json => json.toString());
 

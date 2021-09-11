@@ -2,7 +2,7 @@
   "name": "emscripten_test_folder",
   "version": "1.0.0",
   "description": "emcc -s WASM=1 -s SIDE_MODULE=1 -O2 str.c -o str.js wasm-dis str.wasm -o str.wast",
-  "main": "index.js",
+  "main": "./tools/generator.js",
   "scripts": {
     "build:codec": "em++ src/envTest.c -Os -s WASM=1 -s SIDE_MODULE=1 -o envTest.wasm",
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -26,6 +26,7 @@
     "fs": "0.0.1-security",
     "http-server": "^13.0.1",
     "node-fetch": "^2.6.1",
+    "redis": "^3.1.2",
     "wasi": "0.0.6"
   },
   "devDependencies": {
@@ -41,5 +42,9 @@
     "webpack-cli": "^4.8.0",
     "webpack-dev-server": "^4.0.0",
     "webpack-shell-plugin-next": "^2.2.2"
+  },
+  "bin": {
+    "----------https://developer.okta.com/blog/2019/06/18/command-line-app-with-nodejs----------------------": "",
+    "wafuz": "./tools/generator.js"
   }
 }
