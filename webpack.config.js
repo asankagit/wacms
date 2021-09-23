@@ -11,7 +11,7 @@ const HookShellScriptPlugin = require('hook-shell-script-webpack-plugin');
 const WebpackShellPluginNext = require('webpack-shell-plugin-next');
 
 module.exports = {
-  entry: "./src/index.js",
+  entry: "./src/tmp/index.js",
   output: {
     path: path.resolve(__dirname, "dist"),
     filename: "bundle.js"
@@ -53,7 +53,7 @@ module.exports = {
     }),
     new CopyWebpackPlugin({
       patterns: [
-        { from: "src/*.wasm", to: path.resolve(__dirname, "dist/[name].wasm")}
+        { from: "src/tmp/*.wasm", to: path.resolve(__dirname, "dist/[name].wasm")}
       ]
     }),
     new WebpackShellPluginNext({

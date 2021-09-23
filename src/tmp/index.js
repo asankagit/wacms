@@ -44,7 +44,7 @@ async function loadWebAssembly(filename, imports = {}) {
           tableBase: 0,
           memory: new WebAssembly.Memory({
             initial: 256,
-            maximum: 512,
+            maximum: 512 * 4,
           }),
           table: new WebAssembly.Table({
             initial: 0,
@@ -52,7 +52,7 @@ async function loadWebAssembly(filename, imports = {}) {
             element: 'anyfunc',
           }),
           log: Math.log,
-          printf: function (x) { console.log(x) },
+          iprintf: function (x) { console.log(x) },
           mylogger: function (urlStr) { return "ok" },
           appendStringToBody: function (str) {
             console.log("str ffrom rust", str)
@@ -85,7 +85,11 @@ async function loadWebAssembly(filename, imports = {}) {
           _Z10printStrigNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE: (str, ...rest) => {
             console.log("print string callback", str, rest)
           },
-          __wbindgen_placeholder__:  x => conosle.log(x)
+          __wbindgen_placeholder__:  x => conosle.log(x),
+
+
+          _Z10consoleLogNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE: (str) => console.log("consoleLog", str),
+          _ZNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEE25__init_copy_ctor_externalEPKcm:(str) => console.log(str),
         })
 
         const arrayBuffer = imports.env.memory.buffer;
@@ -95,7 +99,7 @@ async function loadWebAssembly(filename, imports = {}) {
         // console.log(module)
         const instance = new WebAssembly.Instance(module, imports)
 
-        const { exports: { memory, _Z5helloPc: hello } } = instance
+        const { exports: { memory, _Z5helloPc: hello,} } = instance
         console.log({ memory, hello })
         const array = new Uint8Array(arrayBuffer, 0, 15);
         console.log({ array })
@@ -122,8 +126,9 @@ async function loadWebAssembly(filename, imports = {}) {
   //   readline.close()
   // })
 
-const wasmfun = loadWebAssembly("strRead.wasm").then(e => console.log("outter function calling...", e))
-// const  wasmfun_printlogger = loadWebAssembly('envTest.wasm').then(e => console.log("outter function call", e._Z11printLoggeri(["3","s"])))
+const wasmfun = loadWebAssembly("envTest.wasm").then(e => console.log("outter function calling...", e.test(23)))
+const  wasmfun_printlogger = loadWebAssembly('tmp.wasm').then(e => console.log("outter function call",
+e._Z7getSqrtfNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE(16.0, "ss")))
   console.log(wasmfun)
 
 

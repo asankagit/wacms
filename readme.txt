@@ -80,3 +80,9 @@ int main() {
   );
   return 0;
 }
+
+
+
+js callbacks to c++
+https://emscripten.org/docs/api_reference/val.h.html
+https://stackoverflow.com/questions/36371178/embind-pass-lambda-function-as-callback-parameter
