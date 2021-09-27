@@ -37,3 +37,5 @@ myclass['onRuntimeInitialized'] =async  () => {
   // }, 0);
 
 }
+// Todo
+// https://github.com/emscripten-core/emscripten/issues/11899

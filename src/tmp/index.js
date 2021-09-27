@@ -1,6 +1,6 @@
 const fetch = require("node-fetch");
-// const fs = require('fs');
-import fs from "fs"
+const fs = require('fs');
+// import fs from "fs"
 
 const { WASI } = require('wasi');
 const wasi = new WASI({
@@ -127,7 +127,7 @@ async function loadWebAssembly(filename, imports = {}) {
   // })
 
 const wasmfun = loadWebAssembly("envTest.wasm").then(e => console.log("outter function calling...", e.test(23)))
-const  wasmfun_printlogger = loadWebAssembly('tmp.wasm').then(e => console.log("outter function call",
+const  wasmfun_printlogger = loadWebAssembly('../../dist/tmp.wasm').then(e => console.log("outter function call",
 e._Z7getSqrtfNSt3__212basic_stringIcNS_11char_traitsIcEENS_9allocatorIcEEEE(16.0, "ss")))
   console.log(wasmfun)
 

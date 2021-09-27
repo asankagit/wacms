@@ -9,14 +9,18 @@ const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HookShellScriptPlugin = require('hook-shell-script-webpack-plugin');
 // or 
 const WebpackShellPluginNext = require('webpack-shell-plugin-next');
+const nodeExternals = require('webpack-node-externals');
 
 module.exports = {
-  entry: "./src/tmp/index.js",
+  name: "server",
+  entry: {"server": "./src/server/server.js", "worker":"./src/server/worker.js", wasmer: "./src/tmp/wasmer.js" },
   output: {
     path: path.resolve(__dirname, "dist"),
-    filename: "bundle.js"
+    filename: "[name].generated.js",
+    libraryTarget: "commonjs2"
   },
   target: "node",
+  externals: [nodeExternals(), '@wasmer/wasi', '@wasmer/wasmfs'],
   watchOptions: {
     poll: 1000, // Check for changes every second
   },
@@ -48,9 +52,9 @@ module.exports = {
     ]
   },
   plugins: [
-    new HookShellScriptPlugin({
-      afterEmit: ['clear']
-    }),
+    // new HookShellScriptPlugin({
+    //   afterEmit: ['clear']
+    // }),
     new CopyWebpackPlugin({
       patterns: [
         { from: "src/tmp/*.wasm", to: path.resolve(__dirname, "dist/[name].wasm")}
