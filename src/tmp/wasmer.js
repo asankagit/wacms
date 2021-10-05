@@ -18,7 +18,7 @@ let wasi = new WASI({
     fs: fs
   },
   preopens: {
-    '/sandbox': '/home/asanka/Documents/learn/webAssemblyPalygroud/wacms/dist'
+    '/sandbox': '/home/asanka/Documents/learn/webAssemblyPalygroud/wacms'
   }
 })
 
@@ -35,17 +35,21 @@ const startWasiTask =
     let instance = await WebAssembly.instantiate(wasmModule, {
       ...wasi.getImports(wasmModule)
     });
-  
+
     // Start the WASI instance
     wasi.start(instance)
 
      // Output what's inside of /dev/stdout!
     const stdout = await wasmFs.getStdOut();
-    console.log(stdout);
+    console.log({ stdout });
+    return stdout
   }
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Everything starts here
-startWasiTask(wasmFilePath)
+// startWasiTask(wasmFilePath)
+export default {
+  run: () => startWasiTask(wasmFilePath)
+}
 
 // https://github.com/wasmerio/docs.wasmer.io/tree/master/integrations/js/wasi

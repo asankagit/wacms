@@ -20,7 +20,8 @@ module.exports = {
     libraryTarget: "commonjs2"
   },
   target: "node",
-  externals: [nodeExternals(), '@wasmer/wasi', '@wasmer/wasmfs'],
+  externals: [nodeExternals()],
+  // include: ['@wasmer/wasi', '@wasmer/wasmfs'],
   watchOptions: {
     poll: 1000, // Check for changes every second
   },

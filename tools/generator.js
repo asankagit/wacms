@@ -1,7 +1,26 @@
-const { generateTemplateFiles } = require('generate-template-files');
+#!/usr/bin/env node
+const { generateTemplateFiles } = require("generate-template-files");
 
 const config = require('../package.json');
+/////////////////////////////////////greet decorator///////////////////////////
+const chalk = require("chalk");
+const boxen = require("boxen");
 
+const greeting = chalk.white.bold("WAFUZ");
+const boxenOptions = {
+    padding: 1,
+    margin: 1,
+    borderStyle: "single",
+    borderColor: "green",
+    backgroundColor: "#555555",
+    title: 'magical',
+    titleAlignment: 'center'
+};
+const msgBox = boxen( greeting, boxenOptions );
+
+console.log(msgBox);
+
+///////////////////////////////////////////greet////////////////////////////
 generateTemplateFiles([
     {
         option: 'Create C/C++ template',

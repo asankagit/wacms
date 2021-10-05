@@ -1,8 +1,8 @@
 {
-  "name": "emscripten_test_folder",
+  "name": "WebAssembly_playground",
   "version": "1.0.0",
   "description": "emcc -s WASM=1 -s SIDE_MODULE=1 -O2 str.c -o str.js wasm-dis str.wasm -o str.wast",
-  "main": "./dist/server.generated.js",
+  "main": "./tools/generator.js",
   "scripts": {
     "@ToDo check emcc vs em++ compiling issues": "em++ src/tmp/envTest.c -Os -s WASM=1 -s SIDE_MODULE=1 -o envTest.wasm",
     "build:codec": "em++ src/tmp/tmp.cpp -Os -s WASM=1 -s SIDE_MODULE=1 -o src/tmp/tmp.wasm",
@@ -27,6 +27,9 @@
     "@wasmer/wasi": "^0.12.0",
     "@wasmer/wasm-transformer": "^0.12.0",
     "@wasmer/wasmfs": "^0.12.0",
+    "boxen": "4.0",
+    "chalk": "2.4",
+    "chalk-animation": "^1.6.0",
     "express": "^4.17.1",
     "fs": "0.0.1-security",
     "http-server": "^13.0.1",
