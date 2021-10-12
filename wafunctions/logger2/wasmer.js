@@ -9,7 +9,7 @@ import path from 'path'
 
 nodeBindings = nodeBindings.default || nodeBindings;
 
-const wasmFilePath = path.join(__dirname, "../target/wasm32-wasi/debug/__function__.wasm")
+const wasmFilePath = path.join(__dirname, "../target/wasm32-wasi/debug/Logger2.wasm")
 
 // Instantiate a new WASI Instance
 const wasmFs = new WasmFs();
@@ -26,7 +26,7 @@ let wasi = new WASI({
     fetch
   },
   preopens: {
-    '/sandbox': '/home/asanka/Documents/learn/webAssemblyPalygroud/wacms/wafunctions/__function__(lowerCase)'
+    '/sandbox': '/home/asanka/Documents/learn/webAssemblyPalygroud/wacms/wafunctions/logger2'
   }
 })
 

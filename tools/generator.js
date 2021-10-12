@@ -41,9 +41,9 @@ generateTemplateFiles([
         entry: {
             folderPath: './tools/templates/rust_wasm/',
         },
-        stringReplacers: ['__store__', { question: 'Insert model name', slot: '__model__' }],
+        stringReplacers: [{ question: 'Insert model name', slot: '__function__' }],
         output: {
-            path: './wafunctions/__store__(lowerCase)',
+            path: './wafunctions/__function__(lowerCase)',
             pathAndFileNameDefaultCase: '(kebabCase)',
             overwrite: true,
         },

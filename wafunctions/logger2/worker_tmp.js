@@ -1,45 +1,56 @@
-'use strict';
-const vm = require('vm');
-const{ parentPort, workerData } = require("worker_threads")
-// import { exit } from "process"
-const { exit } = require("process")
-const process = require("process")
-// import { readFile, readFileSync } from "fs"
-const fs = require("fs")
-const { readFile } = fs
+import { parentPort, workerData } from "worker_threads"
+import { exit } from "process"
+import { readFile, readFileSync } from "fs"
+import fs from "fs"
 var path_module = require('path');
 const { spawn } = require("child_process")
+const vm = require('vm');
+const http = require('http')
+const wasmer_wasi = require('@wasmer/wasi');
+const wasmer_fs = require("@wasmer/wasmfs")
+const wasm_transformer = require("@wasmer/wasm-transformer")
+const wasm_binding  = require("@wasmer/wasi/lib/bindings/node")
+import wasm_sample from "./wasmer"
 
-// const http = require('http')
-// const wasmer_wasi = require('@wasmer/wasi');
-// const wasmer_fs = require("@wasmer/wasmfs")
-// const wasm_transformer = require("@wasmer/wasm-transformer")
-// const wasm_binding  = require("@wasmer/wasi/lib/bindings/node")
-// const fetch = require("node-fetch")
+setTimeout(() => 
+wasm_sample.run().then(cl => {
+    console.log("wasm_sample_run", cl, "wnd")
+    parentPort.postMessage(cl)
+ }).catch(), 0)
+
+// const dynamic_link = "wasmer"
+// import(/* webpackMode: "eager" */ `../tmp/${dynamic_link}`).then(wasm_sample =>
+//     // console.group(Object.keys(wasm_sample), wasm_sample.default)
+//     wasm_sample.default.run().then(cl => {
+//         console.log("wasm_sample_run", cl, "wnd")
+//         parentPort.postMessage(cl)
+//      }).catch()
+// ).catch(module_err =>  {
+//     console.log(module_err)
+// })
+
+parentPort.postMessage("cl")
 
 const context = {
   animal: 'cat',
   count: 2,
-//   performance: { now: (z) => console.log(z) },
-//   setTimeout,TextDecoder, fetch: (f) => { console.log(f); return fetch}, process,
-  require: (mdl) => { 
+  require: (mdl) => {
     console.log(">><", mdl)
-    return require(mdl)
-    // switch (mdl) {
-    //     case "@wasmer/wasmfs": 
-    //         return wasmer_fs
-    //     case "@wasmer/wasi":
-    //         return wasmer_wasi
-    //     case  "@wasmer/wasm-transformer":
-    //         return wasm_transformer
-    //     case "@wasmer/wasi/lib/bindings/node":
-    //         return wasm_binding
-    //     case "fsx":
-    //         return fs
-    //     default:
-    //         return require(mdl)
-    // }
-        
+    switch (mdl) {
+        case "@wasmer/wasmfs":
+            return wasmer_fs
+        case "@wasmer/wasi":
+            return wasmer_wasi
+        case  "@wasmer/wasm-transformer":
+            return wasm_transformer
+        case "@wasmer/wasi/lib/bindings/node":
+            return wasm_binding
+        case "fs":
+            return fs
+        default:
+            return require(mdl)
+    }
+
   },
   "module": module,
 
@@ -74,32 +85,27 @@ function requireShim(x) {
 //   console.log('Server running at http://127.0.0.1:1234/');
 // })`;
 
-// vm.runInThisContext(code)(http);
-// parentPort.postMessage(context)
-readFile("/home/asanka/Documents/learn/webAssemblyPalygroud/wacms/dist/wasmer.generated.js", 'utf8', (err, code) => {
-    if (err) {
-        console.log(err)
-        exit()
-        throw Error("file read error")
-    }
-    if (code) {
 
-        // const script = new vm.Script(code);
-        // vm.createContext(context);
-        // script.runInContext(context);
-        // console.log("xcv", context)
-
-        vm.createContext(context)
-        vm.runInContext(code, context)
-        console.log("context", context)
-    }
-})
+// readFile("/home/asanka/Documents/learn/webAssemblyPalygroud/wacms/src/tmp/wasmer.js", 'utf8', (err, code) => {
+//     if (err) {
+//         console.log(err)
+//         exit()
+//         throw Error("file read error")
+//     }
+//     if (code) {
+//         const script = new vm.Script(code);
+//         vm.createContext(context);
+//         script.runInContext(context);
+//         console.log({ context })
+//         parentPort.postMessage(context)
+//     }
+// })
 
 
 
 const readCommand = (callback) => {
     const ls = spawn("echo", ["console.log('hi')"])
-    ls.stdout.on("data", data => {      
+    ls.stdout.on("data", data => {
         console.log({ data })
         callback(data.toString() + JSON.stringify(context))
     })
@@ -142,17 +148,20 @@ function LoadModules(path) {
 }
 
 const DIR = path_module.join(__dirname);
-// LoadModules(DIR);
+LoadModules(DIR);
 
-// parentPort.on("message", async (msg) => {
-//     if (msg === "terminate") {
-//         exit(1)
-//     }
-//     if (msg === "next") {
-//         parentPort.postMessage({ msg: {}})
-//     }
-//     if (msg === "fire") {
-//         console.log(" worker got fire")
+parentPort.on('close', () => console.log('closed!'))
+parentPort.on("message", async (msg) => {
+    console.log(">.parent msg listening", msg)
+    if (msg === "terminate") {
+        console.log("worker terminating...", msg)
+        exit(1)
+    }
+    if (msg === "next") {
+        parentPort.postMessage({ msg: {}})
+    }
+    if (msg === "fire") {
+        console.log(" worker got fire")
         // parentPort.postMessage(getScriptObject(__dirname + "/wasmer.generated.js"))
         // filePath()
         // readCommand(x => parentPort.postMessage(x))
@@ -172,34 +181,17 @@ const DIR = path_module.join(__dirname);
                 // parentPort.postMessage(context)
         //     }
         //     // console.log("worker data", data.toString())
-           
+
         //     // data.then(strm => {
         //     //     parentPort.postMessage({ msg: data })
         //     // }).catch(e => {
         //     //     throw Error("file read error")
         //     // })
-            
+
         //     // console.log("data",data)
         // })
-//     }
-// })
+    }
+})
 
 
 // dynamic require with VM :https://nodejs.org/docs/latest-v15.x/api/vm.html#vm_script_runincontext_contextifiedobject_options
-const code = `
-((require) => {
-  const http = require('http');
-
-  http.createServer((request, response) => {
-    response.writeHead(200, { 'Content-Type': 'text/plain' });
-    response.write("hi");
-    response.write("hi2");
-    response.write("hi8");
-    response.write("hi3");
-    setTimeout(() =>response.end('Hello World\\n'), 3000)
-  }).listen(8124);
-
-  console.log('Server running at http://127.0.0.1:8124/');
-})`;
-
-// vm.runInThisContext(code)(require);

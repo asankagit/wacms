@@ -108,3 +108,10 @@ dist
 .vscode
 
 tools/templates/**/node_modules
+
+# Ignore wafuz functions build files and folders
+wafunctions/**/target
+wafunctions/**/dist
+
+# vscode
+.idea

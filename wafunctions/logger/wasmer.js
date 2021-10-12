@@ -9,8 +9,9 @@ import path from 'path'
 
 nodeBindings = nodeBindings.default || nodeBindings;
 
-const wasmFilePath = path.join(__dirname, "../target/wasm32-wasi/debug/__function__.wasm")
-
+const wasmFilePath = path.join(__dirname, "../target/wasm32-wasi/debug/Logger.wasm");
+// global.fetch = fetch
+// console.log({ performance })
 // Instantiate a new WASI Instance
 const wasmFs = new WasmFs();
 let wasi = new WASI({
@@ -22,11 +23,11 @@ let wasi = new WASI({
   bindings: {
     ...nodeBindings,
     fs: fs,
-    performance,
-    fetch
+    fetch: fetch,
+    performance: performance
   },
   preopens: {
-    '/sandbox': '/home/asanka/Documents/learn/webAssemblyPalygroud/wacms/wafunctions/__function__(lowerCase)'
+    '/sandbox': '/home/asanka/Documents/learn/webAssemblyPalygroud/wacms/wafunctions'
   }
 })
 
@@ -54,10 +55,11 @@ const startWasiTask =
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Everything starts here
+// console.log("fetc", fetch)
 // startWasiTask(wasmFilePath)
 export default {
   run: () => startWasiTask(wasmFilePath)
 }
 
-
 // https://github.com/wasmerio/docs.wasmer.io/tree/master/integrations/js/wasi
+
