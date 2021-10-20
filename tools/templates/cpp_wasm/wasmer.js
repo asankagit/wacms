@@ -1,6 +1,6 @@
 const fetch = require("node-fetch");
-const a = require('./student.js')
-const myclass = require("./myclass")
+const a = require('../../../src/tmp/student')
+const myclass = require("../../../src/tmp/myclass")
 const { EventEmitter } = require("events")
 
 global.fetch = fetch
@@ -28,7 +28,6 @@ a['onRuntimeInitialized'] = () => {
 // }, 1000);
 console.time("___wasm_module___")
 
-responseEmitter.once('wasm_response', (response) => console.log("evemt emitter ", response))
 
 myclass['onRuntimeInitialized'] =async  () => {
   // setTimeout(() => {
@@ -45,6 +44,16 @@ myclass['onRuntimeInitialized'] =async  () => {
 
   // }, 0);
 
+}
+
+export default {
+  run: () => {
+    return new Promise((resolve, reject) => {
+      responseEmitter.once('wasm_response', (response) => resolve(response))
+      responseEmitter.once('error', (error) => reject(error))
+    })
+    
+  }
 }
 // Todo
 // https://github.com/emscripten-core/emscripten/issues/11899

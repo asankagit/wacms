@@ -36,6 +36,19 @@ generateTemplateFiles([
         },
     },
     {
+        option: 'CreateC++ template',
+        defaultCase: '(pascalCase)',
+        entry: {
+            folderPath: './tools/templates/cpp_wasm/',
+        },
+        stringReplacers: [{ question: 'Insert function name', slot: '__function__' }],
+        output: {
+            path: './wafunctions/__function__(lowerCase)',
+            pathAndFileNameDefaultCase: '(kebabCase)',
+            overwrite: true,
+        },
+    },
+    {
         option: 'Create Rust template',
         defaultCase: '(pascalCase)',
         entry: {
