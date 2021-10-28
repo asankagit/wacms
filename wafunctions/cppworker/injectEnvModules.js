@@ -38,6 +38,17 @@ const readline = require('readline').createInterface({
 
 const global = new WebAssembly.Global({value:'i32', mutable:true}, 0);
 
+const myRead  = (path) => {
+   return new Promise(( resolve, reject) => {
+    fs.readFile(path, (err, data ) => {
+      if (error) {
+        reject(err)
+      }
+      resolve(data)
+    })
+   })
+  
+}
 
 
 async function loadWebAssembly(filename, imports = {}, injectableFunctions = []) {
@@ -57,10 +68,9 @@ async function loadWebAssembly(filename, imports = {}, injectableFunctions = [])
             maximum: 0,
             element: 'anyfunc',
           }),
-          _embind_register_class: (x) => x,
-          _embind_register_class_function: (m) => m,
-          _embind_register_class_constructor: (x) => x,
-          ...injectableFunctions
+          tmpFuntion: () =>1,
+          ...injectableFunctions,
+          global:global
         })
 
         const arrayBuffer = imports.env.memory.buffer;
@@ -71,10 +81,11 @@ async function loadWebAssembly(filename, imports = {}, injectableFunctions = [])
 
         
         const instance = new WebAssembly.Instance(module, imports)
-        console.log({ instance })
-        const { exports: { memory } } = instance
+
+        const { exports: { memory   } } = instance
         const array = new Uint8Array(arrayBuffer, 0, 15);
-        console.log("array", { array })
+        
+        console.log("array", { array }, module )
         // hello(array.byteOffset);
         console.log(new TextDecoder('utf8').decode(array));
         return instance
@@ -104,11 +115,11 @@ async function loadWebAssembly(filename, imports = {}, injectableFunctions = [])
   
 const readAST = async () => {
   try {
-  const emccOutputFilePath = path.join(__dirname, "./dist/support.js")
+  const emccOutputFilePath = path.join(__dirname, "./myclass.js")
   const astData = await astReader(emccOutputFilePath)
   // astData.map( n => console.log(n))
-  console.log("ast done", astData[0]())
-  const wasmfun = loadWebAssembly("./dist/myclass_optimized.wasm", {}, astData).then(e => console.log("outter function calling...",e))
+  console.log("ast done")
+  const wasmfun = loadWebAssembly(path.join(__dirname, "./dist/myclass.wasm"), {}, astData).then(e => console.log("outter function calling...",e))
   }
   catch(e) {
     console.log(e)

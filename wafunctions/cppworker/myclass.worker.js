@@ -1543,7 +1543,7 @@ function createExportWrapper(name, fixedasm) {
 }
 
 var wasmBinaryFile;
-  wasmBinaryFile = 'myclass.wasm';
+  wasmBinaryFile = 'myclass.worker.wasm';
   if (!isDataURI(wasmBinaryFile)) {
     wasmBinaryFile = locateFile(wasmBinaryFile);
   }
@@ -1717,8 +1717,8 @@ var tempI64;
 var ASM_CONSTS = {
   
 };
-function __asyncjs__do_fetch(url,lenurl){ return Asyncify.handleAsync(async () => { out("waiting for a fetch"); call_mine(UTF8ToString(url, lenurl)); const response = await fetch(UTF8ToString(url, lenurl)).then(res => res.buffer()) .then(json => json.toString());; out("got the fetch response"); var lengthBytes = lengthBytesUTF8(response)+1; var stringOnWasmHeap = _malloc(lengthBytes); stringToUTF8(response, stringOnWasmHeap, lengthBytes); return stringOnWasmHeap; }); }
-function call_js_agrs(title,lentitle,msg,lenmsg){ const stringFromJsWorld = jsMethodAgrs(UTF8ToString(title, lentitle), UTF8ToString(msg, lenmsg)); console.log({ stringFromJsWorld }); var lengthBytes = lengthBytesUTF8(stringFromJsWorld)+1; var stringOnWasmHeap = _malloc(lengthBytes); stringToUTF8(stringFromJsWorld, stringOnWasmHeap, lengthBytes); return stringOnWasmHeap; }
+function __asyncjs__do_fetch(num){ return Asyncify.handleAsync(async () => { out("waiting for a fetch"); Module.timer = false; call_mine(num); const response = await fetch("http://api.plos.org/search?q=title:DNA").then(res => res.buffer()) .then(json => json.toString());; out("got the fetch response"); Module.timer = true; return response; }); }
+function call_js_agrs(title,lentitle,msg,lenmsg){ const stringFromJsWorld = jsMethodAgrs(UTF8ToString(title, lentitle), UTF8ToString(msg, lenmsg)); return stringFromJsWorld; }
 function check_timer(){ return Module.timer; }
 function get_result(){ return "JSON.stringify(Module.my_fetch_res)"; }
 function logger_num(number){ console.log({ number}); }
@@ -1784,6 +1784,95 @@ function start_timer(){ Module.timer = false; fetch("http://api.plos.org/search?
       var js = jsStackTrace();
       if (Module['extraStackTrace']) js += '\n' + Module['extraStackTrace']();
       return demangleAll(js);
+    }
+
+  function ___cxa_allocate_exception(size) {
+      // Thrown object is prepended by exception metadata block
+      return _malloc(size + 16) + 16;
+    }
+
+  function _atexit(func, arg) {
+    }
+  function ___cxa_atexit(a0,a1
+  ) {
+  return _atexit(a0,a1);
+  }
+
+  function ExceptionInfo(excPtr) {
+      this.excPtr = excPtr;
+      this.ptr = excPtr - 16;
+  
+      this.set_type = function(type) {
+        HEAP32[(((this.ptr)+(4))>>2)] = type;
+      };
+  
+      this.get_type = function() {
+        return HEAP32[(((this.ptr)+(4))>>2)];
+      };
+  
+      this.set_destructor = function(destructor) {
+        HEAP32[(((this.ptr)+(8))>>2)] = destructor;
+      };
+  
+      this.get_destructor = function() {
+        return HEAP32[(((this.ptr)+(8))>>2)];
+      };
+  
+      this.set_refcount = function(refcount) {
+        HEAP32[((this.ptr)>>2)] = refcount;
+      };
+  
+      this.set_caught = function (caught) {
+        caught = caught ? 1 : 0;
+        HEAP8[(((this.ptr)+(12))>>0)] = caught;
+      };
+  
+      this.get_caught = function () {
+        return HEAP8[(((this.ptr)+(12))>>0)] != 0;
+      };
+  
+      this.set_rethrown = function (rethrown) {
+        rethrown = rethrown ? 1 : 0;
+        HEAP8[(((this.ptr)+(13))>>0)] = rethrown;
+      };
+  
+      this.get_rethrown = function () {
+        return HEAP8[(((this.ptr)+(13))>>0)] != 0;
+      };
+  
+      // Initialize native structure fields. Should be called once after allocated.
+      this.init = function(type, destructor) {
+        this.set_type(type);
+        this.set_destructor(destructor);
+        this.set_refcount(0);
+        this.set_caught(false);
+        this.set_rethrown(false);
+      }
+  
+      this.add_ref = function() {
+        var value = HEAP32[((this.ptr)>>2)];
+        HEAP32[((this.ptr)>>2)] = value + 1;
+      };
+  
+      // Returns true if last reference released.
+      this.release_ref = function() {
+        var prev = HEAP32[((this.ptr)>>2)];
+        HEAP32[((this.ptr)>>2)] = prev - 1;
+        assert(prev > 0);
+        return prev === 1;
+      };
+    }
+  
+  var exceptionLast = 0;
+  
+  var uncaughtExceptionCount = 0;
+  function ___cxa_throw(ptr, type, destructor) {
+      var info = new ExceptionInfo(ptr);
+      // Initialize ExceptionInfo content after it was allocated in __cxa_allocate_exception.
+      info.init(type, destructor);
+      exceptionLast = ptr;
+      uncaughtExceptionCount++;
+      throw ptr + " - Exception catching is disabled, this exception cannot be caught. Compile with -s NO_DISABLE_EXCEPTION_CATCHING or -s EXCEPTION_CATCHING_ALLOWED=[..] to catch.";
     }
 
   function __embind_register_bigint(primitiveType, name, size, minRange, maxRange) {}
@@ -3785,6 +3874,9 @@ function intArrayToString(array) {
 
 var asmLibraryArg = {
   "__asyncjs__do_fetch": __asyncjs__do_fetch,
+  "__cxa_allocate_exception": ___cxa_allocate_exception,
+  "__cxa_atexit": ___cxa_atexit,
+  "__cxa_throw": ___cxa_throw,
   "_embind_register_bigint": __embind_register_bigint,
   "_embind_register_bool": __embind_register_bool,
   "_embind_register_class": __embind_register_class,
@@ -3825,6 +3917,19 @@ var ___getTypeName = Module["___getTypeName"] = createExportWrapper("__getTypeNa
 var ___embind_register_native_and_builtin_types = Module["___embind_register_native_and_builtin_types"] = createExportWrapper("__embind_register_native_and_builtin_types");
 
 /** @type {function(...*):?} */
+var _emscripten_main_thread_process_queued_calls = Module["_emscripten_main_thread_process_queued_calls"] = createExportWrapper("emscripten_main_thread_process_queued_calls");
+
+/** @type {function(...*):?} */
+var _emscripten_stack_get_base = Module["_emscripten_stack_get_base"] = function() {
+  return (_emscripten_stack_get_base = Module["_emscripten_stack_get_base"] = Module["asm"]["emscripten_stack_get_base"]).apply(null, arguments);
+};
+
+/** @type {function(...*):?} */
+var _emscripten_stack_get_end = Module["_emscripten_stack_get_end"] = function() {
+  return (_emscripten_stack_get_end = Module["_emscripten_stack_get_end"] = Module["asm"]["emscripten_stack_get_end"]).apply(null, arguments);
+};
+
+/** @type {function(...*):?} */
 var _fflush = Module["_fflush"] = createExportWrapper("fflush");
 
 /** @type {function(...*):?} */
@@ -3852,16 +3957,6 @@ var _emscripten_stack_set_limits = Module["_emscripten_stack_set_limits"] = func
 /** @type {function(...*):?} */
 var _emscripten_stack_get_free = Module["_emscripten_stack_get_free"] = function() {
   return (_emscripten_stack_get_free = Module["_emscripten_stack_get_free"] = Module["asm"]["emscripten_stack_get_free"]).apply(null, arguments);
-};
-
-/** @type {function(...*):?} */
-var _emscripten_stack_get_base = Module["_emscripten_stack_get_base"] = function() {
-  return (_emscripten_stack_get_base = Module["_emscripten_stack_get_base"] = Module["asm"]["emscripten_stack_get_base"]).apply(null, arguments);
-};
-
-/** @type {function(...*):?} */
-var _emscripten_stack_get_end = Module["_emscripten_stack_get_end"] = function() {
-  return (_emscripten_stack_get_end = Module["_emscripten_stack_get_end"] = Module["asm"]["emscripten_stack_get_end"]).apply(null, arguments);
 };
 
 /** @type {function(...*):?} */

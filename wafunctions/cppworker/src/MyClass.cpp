@@ -1,21 +1,26 @@
 #include <emscripten/bind.h>
 #include <emscripten.h>
 #include <stdio.h>
+#include <future>
 
 using namespace emscripten;
 
-EM_ASYNC_JS(std::string, do_fetch, (int num), {
+EM_ASYNC_JS(char*, do_fetch, (const char *url, int lenurl), {
   out("waiting for a fetch");
-  Module.timer = false;
-  call_mine(num);
-  const response = await fetch("http://api.plos.org/search?q=title:DNA").then(res => res.buffer())
+  // Module.timer = false;
+  call_mine(UTF8ToString(url, lenurl));
+  const response = await fetch(UTF8ToString(url, lenurl)).then(res => res.buffer())
     .then(json => json.toString());;
 
-  out(response);
+  // out(response);
   out("got the fetch response");
-  Module.timer = true;
+  // Module.timer = true;
   // (normally you would do something with the fetch here)
-  return response;
+  // return response;
+    var lengthBytes = lengthBytesUTF8(response)+1;
+    var stringOnWasmHeap = _malloc(lengthBytes);
+    stringToUTF8(response, stringOnWasmHeap, lengthBytes);
+    return stringOnWasmHeap;
 });
 
 EM_JS(void, start_timer, (), {
@@ -59,7 +64,6 @@ public:
   }
 
   std::string& callback() {
-    
     start_timer();  
     while (1) {
       if (check_timer()) {
@@ -69,11 +73,11 @@ public:
         break;
         // return 0;
       }
-      printf("sleeping...\n");
+      // printf("sleeping...\n %s", this->context.c_str());
       emscripten_sleep(100);
       
     }
-     printf("outside..\n");
+    //  printf("outside..%d", strlen(this->context.c_str()));
     std::string str =  "emt" + get_result();
     std::string res = "{}";
     return this->context;
@@ -83,6 +87,47 @@ public:
   virtual void subPrint() = 0;
 };
 
+EM_JS(void, logger_num, (int number), {
+  console.log({ number});
+})
+
+// https://stackoverflow.com/questions/59532379/how-to-call-javascript-method-from-c-with-parameters-using-em-js
+// https://emscripten.org/docs/api_reference/emscripten.h.html
+EM_JS(char*, call_js_agrs, (const char *title, int lentitle, const char *msg, int lenmsg), {
+    const stringFromJsWorld = jsMethodAgrs(UTF8ToString(title, lentitle), UTF8ToString(msg, lenmsg));
+    console.log({ stringFromJsWorld });
+    var lengthBytes = lengthBytesUTF8(stringFromJsWorld)+1;
+    var stringOnWasmHeap = _malloc(lengthBytes);
+    stringToUTF8(stringFromJsWorld, stringOnWasmHeap, lengthBytes);
+
+    // Asyncify.handleAsync(async() => {
+      // return await Promise((resolve, reject) => {
+      //   setTimout(() => resolve(stringOnWasmHeap), 2000)
+      // })
+    // })
+    return stringOnWasmHeap;
+});
+
+bool callJsBackWithAgrs()
+{
+    const std::string title = "Hello from C++";
+    const std::string msg = "This string is passed as a paramter from C++ code!";
+    char* js_return = call_js_agrs(title.c_str(), title.length(), msg.c_str(), msg.length());
+    printf("print_js_return %s >>", js_return);
+
+    delete js_return;
+    return true;
+
+
+    
+}
+
+bool customFetch() {
+  // std::string url = "http://api.plos.org/search?q=title:DNA";
+  // printf("do_fetch_response%s", do_fetch(url.c_str(), url.length()));
+  return true;
+}
+
 class SubClass : public BaseClass {
 public:
   SubClass() : BaseClass() {}
@@ -91,6 +136,10 @@ public:
 
   void subPrint() {
     printf("sub print x\n ");
+  }
+
+  void readUrlData() {
+
   }
 };
 
@@ -104,6 +153,8 @@ EMSCRIPTEN_BINDINGS() {
     .function("getName", &BaseClass::callback)
     .function("setName", &BaseClass::getContext)
     ;
+  emscripten::function("callJsBackWithAgrs", &callJsBackWithAgrs);
+  emscripten::function("customFetch", &customFetch);
 }
 
 

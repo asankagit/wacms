@@ -8,10 +8,10 @@ installer:
 
 builder_task:
 	@$(BUILD_TOOL) src/main.cpp --bind  -s ASYNCIFY -o student.js -Iinclide -I . 
-	@$(BUILD_TOOL) --bind src/MyClass.cpp  -s ASYNCIFY -o myclass.js
+	@$(BUILD_TOOL) --bind src/MyClass.cpp  -s ASYNCIFY -o myclass.js -std=c++11
 	# Optimzed with -O3
-	@$(BUILD_TOOL) src/main.cpp --bind -s ASYNCIFY -o dist/student_optimized.wasm -s WASM=1 -Iinclide -I . --no-entry
-	@$(BUILD_TOOL) --bind src/MyClass.cpp -s ASYNCIFY -o dist/myclass_optimized.wasm -s WASM=1 --no-entry -o dist/support.js
+	# @$(BUILD_TOOL) src/main.cpp --bind -s ASYNCIFY -o dist/student_optimized.wasm -s WASM=1 -Iinclide -I . --no-entry
+	# @$(BUILD_TOOL) --bind src/MyClass.cpp -s ASYNCIFY -o dist/myclass_optimized.wasm -s WASM=1 --no-entry -o dist/support.js
 
 webpack_build:
 	npx webpack --config webpack.config.js

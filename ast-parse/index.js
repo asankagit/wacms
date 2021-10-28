@@ -4,13 +4,20 @@ const fs = require('fs')
 const template = require("@babel/template").default
 const { parse: astParse, find, findInfo, ...rest } = require("ast-parser");
 const t = require("@babel/types")
-
+const vm = require('vm');
 
 const functionConvertor = (functionString, name) => {
   //  return new Function('"use strict"; function v() { return 23;};const x = () => v(); return (x())');
 
-  const _functionString = functionString.replace(/function __embind_register_class/g, "function _embind_register_class")
-  const _name = name.replace(/__embind_register_class/g, "_embind_register_class")
+  const _functionString = functionString
+    .replace(/function _/g, "function ")  
+    .replace(/function __/g, "function _")
+    
+
+  const _name = name
+    .replace(/^_/g, "")
+    .replace(/^__/g, "_")
+    
 
   const customFunction = new Function('"use strict";' + _functionString + ';return (' + _name + ');')
   // name.match(/_embind_register_class/g) ? console.log(_name, _functionString) : console.log("not found") 
@@ -26,7 +33,7 @@ const functionReader = (path) => {
           console.error(err)
           return
         }
-        console.log({ path })
+
         const code = data
         const parseOptions = {
           sourceType: "module",
@@ -36,12 +43,27 @@ const functionReader = (path) => {
         const ast = parse(code, parseOptions)
         const [fun] = ast.program.body.filter(({ type }) => type === "FunctionDeclaration")
         const functions = ast.program.body.filter(node => node.type === "FunctionDeclaration")
-        // const info = astParse(ast)
-        // const moreInfo = info.declarations[0]
+        const globalObjects = ast.program.body.filter(node => node.type !== "FunctionDeclaration")
+
+        const context = []
+        const addToContext = globalObjects.map(obj => {
+
+          const { code: globalVariables } = generate(
+            obj,
+            {
+              retainFunctionParens: true,
+              jsonCompatibleStrings: true,
+              attachComment: false
+            },
+            code
+          );
+          context.push(globalVariables)
+            return globalVariables
+          // console.log({ globalVariables })
+        })
 
 
-
-        // console.log("functions", functions)
+        global.context = context.join('')
 
         const functionsList = functions.map(functionAST => {
           const buildRequire = template(`
@@ -64,77 +86,49 @@ const functionReader = (path) => {
             }
             //  code
           );
-          //  console.log(generate(astTemplate).code)
+
           const convertedFun = functionConvertor(output, functionAST.id.name)
+          // console.log({convertedFun})
+          global[functionAST.id.name] = convertedFun
           return convertedFun
         })
-        resolve(functionsList)
+
+        const vm_context = {
+         
+          ...functionsList.reduce((a, i) => {
+            // console.log([i.name])
+            return {
+              [i.name]: i,
+              ...a
+            }
+          }, {})
+        }
+
+        try {
+          vm.createContext(vm_context)
+          addToContext.map(chunk => {         
+            // vm.runInContext(chunk, vm_context);
+            // eval(chunk)
+            // console.log({ chunk })
+          }) 
+          vm.runInContext(addToContext.join(''), vm_context)
+        }
+        catch (e) {
+          console.log(e)
+        }
+        resolve(vm_context)
 
       })
     }
-    catch(e) {
+    catch (e) {
       reject(e)
     }
   })
 }
-
+// functionReader("../wafunctions/cppworker/myclass.js")
 module.exports = {
   astReader: functionReader
 }
 
-// const code = "class Example {}";
 
-
-
-// const{ codeFrameColumns } = require("@babel/code-frame")
-
-// const rawLines = `class Foo {
-//   constructor()
-// }`;
-// const location = { start: { line: 2, column: 16 } };
-
-// const result = codeFrameColumns(rawLines, location, {
-//   /* options */
-// });
-
-// // console.log(result);
-
-// // example 3
-// var babel = require("@babel/core");
-// const { transform } = require("@babel/core")
-// // const  babel = require("@babel/core")
-
-// const trm = babel.transformAsync(`
-// function x () {
-//   return "ssss".split("");
-// }
-// function y () {
-//   return "ssss".split("");
-// }
-// `, {}).then(result => {
-//   result.code;
-//   result.map;
-//   result.ast;
-//   // console.log(result)
-// });
-
-// // console.log(trm)
-
-
-// // traverse example
-// const traverse = require("@babel/traverse").default
-
-// const code = `function square(n) {
-//   return n * n;
-// }`;
-
-// const ast_ = parse(code);
-
-// traverse(ast_, {
-//   enter(path) {
-//     if (path.isIdentifier({ name: "n" })) {
-//       path.node.name = "x";
-//     }
-//   },
-// });
-// // console.log({ ast_ })
+// node --experimental-wasi-unstable-preview1  --experimental-vm-modules index.js 

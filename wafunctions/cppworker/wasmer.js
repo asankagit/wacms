@@ -6,7 +6,11 @@ const { EventEmitter } = require("events");
 const { Module } = require("module");
 
 
-global.fetch = fetch
+global.fetch = (url) => { 
+  // console.log({ url })
+  return fetch(url)
+}
+// console.log({ Module }, myclass.ENV)
 global.call_mine = (num) => console.log("this is mine", num)
 global.print = (print) => console.log(print)
 
@@ -14,8 +18,17 @@ const responseEmitter = new EventEmitter()
 
 console.time("___wasm_module___")
 
+function jsMethodAgrs(title, msg) {
+  console.log(">><<jsMethodAgrs", title + '\n' + msg);
+  return "this is sent from JS host "
+}
+
+global.jsMethodAgrs =jsMethodAgrs
 
 myclass['onRuntimeInitialized'] =async  () => {
+  myclass.customFetch();
+  myclass.callJsBackWithAgrs();
+  // console.log({ myclass })
   // setTimeout(() => {
     const clz = new myclass.SubClass();
 
@@ -23,7 +36,7 @@ myclass['onRuntimeInitialized'] =async  () => {
     await clz.getName()
     clz.setName(myclass.my_fetch_res)
     const response = await clz.getName()
-    console.log("bse", response, "\n", /* myclass.my_fetch_res */)
+    // console.log("bse", response, "\n", /* myclass.my_fetch_res */)
 
     // responseEmitter.once('event', () => { console.log("emitted")})
     responseEmitter.emit("wasm_response", response)

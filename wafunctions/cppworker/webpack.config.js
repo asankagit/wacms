@@ -50,6 +50,11 @@ module.exports = {
   //   }
   // },
   plugins: [
+    new CopyWebpackPlugin({
+      patterns: [
+        { from: "*.wasm", to: path.resolve(__dirname, "dist/[name].wasm")}
+      ]
+    }),
     new webpack.ProvidePlugin({
       'fetch': ['node-fetch', 'default'],
       'myclass': path.resolve(__dirname, './myclass.js')
