@@ -34,6 +34,7 @@
     "fs": "0.0.1-security",
     "http-server": "^13.0.1",
     "node-fetch": "^2.6.5",
+    "php-wasm": "^0.0.4-a",
     "redis": "^3.1.2",
     "request": "^2.79.0",
     "wasi": "0.0.6"

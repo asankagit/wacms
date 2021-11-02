@@ -1,0 +1,16 @@
+{
+  "name": "phphello",
+  "version": "1.0.0",
+  "description": "",
+  "main": "webpack.config.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "custom-event": "^1.0.1",
+    "jsdom": "^18.0.0",
+    "xmlhttprequest": "^1.8.0"
+  }
+}

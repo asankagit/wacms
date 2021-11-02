@@ -61,6 +61,19 @@ generateTemplateFiles([
             overwrite: true,
         },
     },
+    {
+        option: 'Create PHP template',
+        defaultCase: '(pascalCase)',
+        entry: {
+            folderPath: './tools/templates/php_wasm/',
+        },
+        stringReplacers: [{ question: 'Insert model name', slot: '__function__' }],
+        output: {
+            path: './wafunctions/__function__(lowerCase)',
+            pathAndFileNameDefaultCase: '(kebabCase)',
+            overwrite: true,
+        },
+    },
     // {
     //     option: 'Create Redux Store',
     //     defaultCase: '(pascalCase)',

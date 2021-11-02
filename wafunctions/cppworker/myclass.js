@@ -1717,12 +1717,8 @@ var tempI64;
 var ASM_CONSTS = {
   
 };
-function __asyncjs__do_fetch(url,lenurl){ return Asyncify.handleAsync(async () => { out("waiting for a fetch"); call_mine(UTF8ToString(url, lenurl)); const response = await fetch(UTF8ToString(url, lenurl)).then(res => res.buffer()) .then(json => json.toString());; out("got the fetch response"); var lengthBytes = lengthBytesUTF8(response)+1; var stringOnWasmHeap = _malloc(lengthBytes); stringToUTF8(response, stringOnWasmHeap, lengthBytes); return stringOnWasmHeap; }); }
-function call_js_agrs(title,lentitle,msg,lenmsg){ const stringFromJsWorld = jsMethodAgrs(UTF8ToString(title, lentitle), UTF8ToString(msg, lenmsg)); console.log({ stringFromJsWorld }); var lengthBytes = lengthBytesUTF8(stringFromJsWorld)+1; var stringOnWasmHeap = _malloc(lengthBytes); stringToUTF8(stringFromJsWorld, stringOnWasmHeap, lengthBytes); return stringOnWasmHeap; }
-function check_timer(){ return Module.timer; }
-function get_result(){ return "JSON.stringify(Module.my_fetch_res)"; }
-function logger_num(number){ console.log({ number}); }
-function start_timer(){ Module.timer = false; fetch("http://api.plos.org/search?q=title:DNA").then(res => res.buffer()) .then(json => { Module.my_fetch_res = json.toString(); Module.timer = true; return json.toString() }) .catch(e => out(e)); }
+function __asyncjs__do_fetch(url,lenurl){ return Asyncify.handleAsync(async () => { out("waiting for a fetch"); call_mine(UTF8ToString(url, lenurl)); const response = await fetch(UTF8ToString(url, lenurl)).then(res => res.buffer()) .then(json => json.toString());; out("got the fetch response"); const lengthBytes = lengthBytesUTF8(response)+1; const stringOnWasmHeap = _malloc(lengthBytes); stringToUTF8(response, stringOnWasmHeap, lengthBytes); return stringOnWasmHeap; }); }
+function __asyncjs__do_fetch2(url,lenurl){ return Asyncify.handleAsync(async () => { out("waiting for a fetch"); call_mine(UTF8ToString(url, lenurl)); const response = await fetch(UTF8ToString(url, lenurl)).then(res => res.buffer()) .then(json => json.toString());; out("got the fetch response"); const lengthBytes = lengthBytesUTF8(response)+1; const stringOnWasmHeap = _malloc(lengthBytes); stringToUTF8(response, stringOnWasmHeap, lengthBytes); return stringOnWasmHeap; }); }
 
 
 
@@ -3384,23 +3380,6 @@ function start_timer(){ Module.timer = false; fetch("http://api.plos.org/search?
       });
     }
 
-  function __embind_register_function(name, argCount, rawArgTypesAddr, signature, rawInvoker, fn) {
-      var argTypes = heap32VectorToArray(argCount, rawArgTypesAddr);
-      name = readLatin1String(name);
-  
-      rawInvoker = embind__requireFunction(signature, rawInvoker);
-  
-      exposePublicSymbol(name, function() {
-          throwUnboundTypeError('Cannot call ' + name + ' due to unbound types', argTypes);
-      }, argCount - 1);
-  
-      whenDependentTypesAreResolved([], argTypes, function(argTypes) {
-          var invokerArgsArray = [argTypes[0] /* return value */, null /* no class 'this'*/].concat(argTypes.slice(1) /* actual params */);
-          replacePublicSymbol(name, craftInvokerFunction(name, invokerArgsArray, null /* no class 'this'*/, rawInvoker, fn), argCount - 1);
-          return [];
-      });
-    }
-
   function integerReadValueFromPointer(name, shift, signed) {
       // integers are quite common, so generate very specialized functions
       switch (shift) {
@@ -3684,19 +3663,6 @@ function start_timer(){ Module.timer = false; fetch("http://api.plos.org/search?
       abortOnCannotGrowMemory(requestedSize);
     }
 
-  function safeSetTimeout(func, timeout) {
-      
-      return setTimeout(function() {
-        
-        callUserCallback(func);
-      }, timeout);
-    }
-  function _emscripten_sleep(ms) {
-      Asyncify.handleSleep(function(wakeUp) {
-        safeSetTimeout(wakeUp, ms);
-      });
-    }
-
   function flush_NO_FILESYSTEM() {
       // flush anything remaining in the buffers during shutdown
       if (typeof _fflush !== 'undefined') _fflush(0);
@@ -3785,6 +3751,7 @@ function intArrayToString(array) {
 
 var asmLibraryArg = {
   "__asyncjs__do_fetch": __asyncjs__do_fetch,
+  "__asyncjs__do_fetch2": __asyncjs__do_fetch2,
   "_embind_register_bigint": __embind_register_bigint,
   "_embind_register_bool": __embind_register_bool,
   "_embind_register_class": __embind_register_class,
@@ -3792,23 +3759,16 @@ var asmLibraryArg = {
   "_embind_register_class_function": __embind_register_class_function,
   "_embind_register_emval": __embind_register_emval,
   "_embind_register_float": __embind_register_float,
-  "_embind_register_function": __embind_register_function,
   "_embind_register_integer": __embind_register_integer,
   "_embind_register_memory_view": __embind_register_memory_view,
   "_embind_register_std_string": __embind_register_std_string,
   "_embind_register_std_wstring": __embind_register_std_wstring,
   "_embind_register_void": __embind_register_void,
   "abort": _abort,
-  "call_js_agrs": call_js_agrs,
-  "check_timer": check_timer,
   "emscripten_memcpy_big": _emscripten_memcpy_big,
   "emscripten_resize_heap": _emscripten_resize_heap,
-  "emscripten_sleep": _emscripten_sleep,
   "fd_write": _fd_write,
-  "get_result": get_result,
-  "logger_num": logger_num,
-  "setTempRet0": _setTempRet0,
-  "start_timer": start_timer
+  "setTempRet0": _setTempRet0
 };
 Asyncify.instrumentWasmImports(asmLibraryArg);
 var asm = createWasm();

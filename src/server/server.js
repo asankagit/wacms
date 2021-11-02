@@ -14,11 +14,11 @@ const wasmInvokeFun = (req,res) => {
     const workers = []
 
         const callback = (data) => {
-            console.log("callbakc", data)
+            // console.log("callbakc", data)
             // workers[0].postMessage("fire")
             // workers[1].postMessage("fire")
 
-            console.log(">>>", { data })
+            // console.log(">>>", { data })
             res.send(data)
 
             workers[0].removeListener("message", callback)
@@ -29,7 +29,8 @@ const wasmInvokeFun = (req,res) => {
 
         const worker_path = `./wafunctions/${wafuz}/dist/wasmer_host_function.generated.js`
         const createWorker = (id, index) => {
-            const worker = new Worker(worker_path, { workerData: { id, index } })
+            const { params, body, query, method, ...rest } = req
+            const worker = new Worker(worker_path, { workerData: { id, index, req: { params, body, query, method } } })
             worker.on("error", err => { console.log(err) })
             worker.on("message", callback)
             return worker

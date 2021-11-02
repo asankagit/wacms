@@ -86,3 +86,15 @@ int main() {
 js callbacks to c++
 https://emscripten.org/docs/api_reference/val.h.html
 https://stackoverflow.com/questions/36371178/embind-pass-lambda-function-as-callback-parameter
+
+
+
+// readings
+// https://medium.com/@penberg/on-kernel-bypass-networking-and-programmable-packet-processing-799609b06898
+// https://www.intel.com/content/www/us/en/developer/articles/technical/minimize-nodejs-io-bottlenecks.html
+// https://www.npmjs.com/package/pcap
+// https://stackoverflow.com/questions/18343365/zero-copy-networking-vs-kernel-bypass - pcap 
+// https://filipjaniszewski.com/2018/05/26/including-dpdk-libs-into-your-c-project/
+
+// dpdk- research gate artickle
+// https://www.researchgate.net/publication/299489473_Enhancing_VNF_performance_by_exploiting_SR-IOV_and_DPDK_packet_processing_acceleration/figures?lo=1
