@@ -22,21 +22,21 @@ console.log(msgBox);
 
 ///////////////////////////////////////////greet////////////////////////////
 generateTemplateFiles([
+    // {
+    //     option: 'Create C/C++ template',
+    //     defaultCase: '(pascalCase)',
+    //     entry: {
+    //         folderPath: './tools/templates/c_wasm/',
+    //     },
+    //     stringReplacers: [{ question: 'Insert model name', slot: '__function__' }, { question: 'Insert model name', slot: '__model__' }],
+    //     output: {
+    //         path: './wafunctions/__function__(lowerCase)',
+    //         pathAndFileNameDefaultCase: '(kebabCase)',
+    //         overwrite: true,
+    //     },
+    // },
     {
         option: 'Create C/C++ template',
-        defaultCase: '(pascalCase)',
-        entry: {
-            folderPath: './tools/templates/c_wasm/',
-        },
-        stringReplacers: [{ question: 'Insert model name', slot: '__function__' }, { question: 'Insert model name', slot: '__model__' }],
-        output: {
-            path: './wafunctions/__function__(lowerCase)',
-            pathAndFileNameDefaultCase: '(kebabCase)',
-            overwrite: true,
-        },
-    },
-    {
-        option: 'CreateC++ template',
         defaultCase: '(pascalCase)',
         entry: {
             folderPath: './tools/templates/cpp_wasm/',

@@ -44,14 +44,19 @@ public:
     this->context = context;
   }
 
-  std::string& callback() {
+  std::string _run_header() {
+     std::string url = "http://api.plos.org/search?q=title:DNA";
+    return Wafuz::fetch(url);
+  }
+
+  std::string callback() {
     std::string url = "http://api.plos.org/search?q=title:DNA";
     const char *s = do_fetch(url.c_str(), url.length());    
     std::string str(s);
     printf("do_fetch_response %d \n ", str.length());
     printf("do_fetch_response %s ", this->context.c_str());
     // callback2();
-     printf("-----outer header test %s",Wafuz::fetch(url).c_str());
+    printf("-----outer header test %s",Wafuz::fetch(url).c_str());
     return str;
   }
 
@@ -60,7 +65,6 @@ std::string& callback2() {
     const char *s = do_fetch(url.c_str(), url.length());    
     std::string str(s);
     printf("do_fetch_response 2 %d \n ", str.length());
-    // printf("do_fetch_response 2 %s ", s);
     return str;
   }
 

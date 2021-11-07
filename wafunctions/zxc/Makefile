@@ -9,6 +9,7 @@ installer:
 builder_task:
 	# @$(BUILD_TOOL) src/main.cpp --bind  -s ASYNCIFY -o student.js -Iinclide -I . 
 	# g++ -c -o Wafuz.o include/Wafuz.cpp
+
 	@$(BUILD_TOOL) --bind src/*.cpp -Iinclude -s ASYNCIFY -o emscripten_mini.js -std=c++11  
 	# Avoid errors for undefined variables  -s ERROR_ON_UNDEFINED_SYMBOLS=0
 	# Optimzed with -O3

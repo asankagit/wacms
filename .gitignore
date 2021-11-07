@@ -115,3 +115,7 @@ wafunctions/**/dist
 
 # vscode
 .idea
+
+# utils
+node_pcap
+redis_trace
