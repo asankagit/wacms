@@ -26,7 +26,7 @@ let wasi = new WASI({
     fetch
   },
   preopens: {
-    '/sandbox': '/home/asanka/Documents/learn/webAssemblyPalygroud/wacms/wafunctions/logger2'
+    '/sandbox': '/home/asanka/Msc/wacms/wafunctions/logger2'
   }
 })
 

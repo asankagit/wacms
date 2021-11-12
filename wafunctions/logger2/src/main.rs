@@ -27,7 +27,14 @@ fn main() {
 }
 
 
-// https://sendilkumarn.com/blog/wasi-with-wasmtime/
+// https://sendilkumarn.com/blog/wasi-with-wasmtime/ 
+// curl https://wasmtime.dev/install.sh -sSf | bash
+// install nightly toolchain
+// rustup toolchain install nightly
+
+// install wasm32-wsi li
+// rustup target add wasm32-wasi --toolchain nightly
+
 // rustup target add wasm32-wasi --toolchain nightly
 // cargo +nightly build --target wasm32-wasi
 

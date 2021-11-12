@@ -53,8 +53,8 @@ public:
     std::string url = "http://api.plos.org/search?q=title:DNA";
     const char *s = do_fetch(url.c_str(), url.length());    
     std::string str(s);
-    printf("do_fetch_response %d \n ", str.length());
-    printf("do_fetch_response %s ", this->context.c_str());
+    // printf("do_fetch_response %d \n ", str.length());
+    // printf("do_fetch_response %s ", this->context.c_str());
     // callback2();
     printf("-----outer header test %s",Wafuz::fetch(url).c_str());
     return str;

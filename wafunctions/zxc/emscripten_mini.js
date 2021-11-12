@@ -68,6 +68,22 @@ var read_,
     readBinary,
     setWindowTitle;
 
+// Normally we don't log exceptions but instead let them bubble out the top
+// level where the embedding environment (e.g. the browser) can handle
+// them.
+// However under v8 and node we sometimes exit the process direcly in which case
+// its up to use us to log the exception before exiting.
+// If we fix https://github.com/emscripten-core/emscripten/issues/15080
+// this may no longer be needed under node.
+function logExceptionOnExit(e) {
+  if (e instanceof ExitStatus) return;
+  var toLog = e;
+  if (e && typeof e === 'object' && e.stack) {
+    toLog = [e, e.stack];
+  }
+  err('exiting due to exception: ' + toLog);
+}
+
 var nodeFS;
 var nodePath;
 
@@ -126,13 +142,19 @@ readAsync = function readAsync(filename, onload, onerror) {
     }
   });
 
-  process['on']('unhandledRejection', abort);
+  // Without this older versions of node (< v15) will log unhandled rejections
+  // but return 0, which is not normally the desired behaviour.  This is
+  // not be needed with node v15 and about because it is now the default
+  // behaviour:
+  // See https://nodejs.org/api/cli.html#cli_unhandled_rejections_mode
+  process['on']('unhandledRejection', function(reason) { throw reason; });
 
   quit_ = function(status, toThrow) {
     if (keepRuntimeAlive()) {
       process['exitCode'] = status;
       throw toThrow;
     }
+    logExceptionOnExit(toThrow);
     process['exit'](status);
   };
 
@@ -170,7 +192,8 @@ if (ENVIRONMENT_IS_SHELL) {
   }
 
   if (typeof quit === 'function') {
-    quit_ = function(status) {
+    quit_ = function(status, toThrow) {
+      logExceptionOnExit(toThrow);
       quit(status);
     };
   }
@@ -197,8 +220,10 @@ if (ENVIRONMENT_IS_WEB || ENVIRONMENT_IS_WORKER) {
   // otherwise, slice off the final part of the url to find the script directory.
   // if scriptDirectory does not contain a slash, lastIndexOf will return -1,
   // and scriptDirectory will correctly be replaced with an empty string.
+  // If scriptDirectory contains a query (starting with ?) or a fragment (starting with #),
+  // they are removed because they could contain a slash.
   if (scriptDirectory.indexOf('blob:') !== 0) {
-    scriptDirectory = scriptDirectory.substr(0, scriptDirectory.lastIndexOf('/')+1);
+    scriptDirectory = scriptDirectory.substr(0, scriptDirectory.replace(/[?#].*/, "").lastIndexOf('/')+1);
   } else {
     scriptDirectory = '';
   }
@@ -253,8 +278,6 @@ if (ENVIRONMENT_IS_WEB || ENVIRONMENT_IS_WORKER) {
   throw new Error('environment detection error');
 }
 
-// Set up the out() and err() hooks, which are how we can print to stdout or
-// stderr, respectively.
 var out = Module['print'] || console.log.bind(console);
 var err = Module['printErr'] || console.warn.bind(console);
 
@@ -363,6 +386,10 @@ assert(!ENVIRONMENT_IS_SHELL, "shell environment detected but not enabled at bui
 
 var STACK_ALIGN = 16;
 
+function getPointerSize() {
+  return 4;
+}
+
 function getNativeTypeSize(type) {
   switch (type) {
     case 'i1': case 'i8': return 1;
@@ -373,7 +400,7 @@ function getNativeTypeSize(type) {
     case 'double': return 8;
     default: {
       if (type[type.length-1] === '*') {
-        return 4; // A pointer
+        return getPointerSize();
       } else if (type[0] === 'i') {
         var bits = Number(type.substr(1));
         assert(bits % 8 === 0, 'getNativeTypeSize invalid bits ' + bits + ', type ' + type);
@@ -502,19 +529,26 @@ function getEmptyTableSlot() {
   return wasmTable.length - 1;
 }
 
-// Add a wasm function to the table.
-function addFunctionWasm(func, sig) {
+function updateTableMap(offset, count) {
+  for (var i = offset; i < offset + count; i++) {
+    var item = getWasmTableEntry(i);
+    // Ignore null values.
+    if (item) {
+      functionsInTableMap.set(item, i);
+    }
+  }
+}
+
+// Add a function to the table.
+// 'sig' parameter is required if the function being added is a JS function.
+function addFunction(func, sig) {
+  assert(typeof func !== 'undefined');
+
   // Check if the function is already in the table, to ensure each function
   // gets a unique index. First, create the map if this is the first use.
   if (!functionsInTableMap) {
     functionsInTableMap = new WeakMap();
-    for (var i = 0; i < wasmTable.length; i++) {
-      var item = wasmTable.get(i);
-      // Ignore null values.
-      if (item) {
-        functionsInTableMap.set(item, i);
-      }
-    }
+    updateTableMap(0, wasmTable.length);
   }
   if (functionsInTableMap.has(func)) {
     return functionsInTableMap.get(func);
@@ -527,14 +561,14 @@ function addFunctionWasm(func, sig) {
   // Set the new value.
   try {
     // Attempting to call this with JS function will cause of table.set() to fail
-    wasmTable.set(ret, func);
+    setWasmTableEntry(ret, func);
   } catch (err) {
     if (!(err instanceof TypeError)) {
       throw err;
     }
     assert(typeof sig !== 'undefined', 'Missing signature argument to addFunction: ' + func);
     var wrapped = convertJsFunctionToWasm(func, sig);
-    wasmTable.set(ret, wrapped);
+    setWasmTableEntry(ret, wrapped);
   }
 
   functionsInTableMap.set(func, ret);
@@ -543,16 +577,8 @@ function addFunctionWasm(func, sig) {
 }
 
 function removeFunction(index) {
-  functionsInTableMap.delete(wasmTable.get(index));
+  functionsInTableMap.delete(getWasmTableEntry(index));
   freeTableIndexes.push(index);
-}
-
-// 'sig' parameter is required for the llvm backend but only when func is not
-// already a WebAssembly function.
-function addFunction(func, sig) {
-  assert(typeof func !== 'undefined');
-
-  return addFunctionWasm(func, sig);
 }
 
 // end include: runtime_functions.js
@@ -618,7 +644,7 @@ if (typeof WebAssembly !== 'object') {
     @param {number|boolean=} noSafe */
 function setValue(ptr, value, type, noSafe) {
   type = type || 'i8';
-  if (type.charAt(type.length-1) === '*') type = 'i32'; // pointers are 32-bit
+  if (type.charAt(type.length-1) === '*') type = 'i32';
     switch (type) {
       case 'i1': HEAP8[((ptr)>>0)] = value; break;
       case 'i8': HEAP8[((ptr)>>0)] = value; break;
@@ -636,7 +662,7 @@ function setValue(ptr, value, type, noSafe) {
     @param {number|boolean=} noSafe */
 function getValue(ptr, type, noSafe) {
   type = type || 'i8';
-  if (type.charAt(type.length-1) === '*') type = 'i32'; // pointers are 32-bit
+  if (type.charAt(type.length-1) === '*') type = 'i32';
     switch (type) {
       case 'i1': return HEAP8[((ptr)>>0)];
       case 'i8': return HEAP8[((ptr)>>0)];
@@ -644,7 +670,7 @@ function getValue(ptr, type, noSafe) {
       case 'i32': return HEAP32[((ptr)>>2)];
       case 'i64': return HEAP32[((ptr)>>2)];
       case 'float': return HEAPF32[((ptr)>>2)];
-      case 'double': return HEAPF64[((ptr)>>3)];
+      case 'double': return Number(HEAPF64[((ptr)>>3)]);
       default: abort('invalid type for getValue: ' + type);
     }
   return null;
@@ -730,9 +756,11 @@ function ccall(ident, returnType, argTypes, args, opts) {
   }
   var ret = func.apply(null, cArgs);
   function onDone(ret) {
+    runtimeKeepalivePop();
     if (stack !== 0) stackRestore(stack);
     return convertReturnValue(ret);
   }
+  runtimeKeepalivePush();
   var asyncMode = opts && opts.async;
   // Check if we started an async operation just now.
   if (Asyncify.currData) {
@@ -863,6 +891,7 @@ function UTF8ArrayToString(heap, idx, maxBytesToRead) {
  * @return {string}
  */
 function UTF8ToString(ptr, maxBytesToRead) {
+  ;
   return ptr ? UTF8ArrayToString(HEAPU8, ptr, maxBytesToRead) : '';
 }
 
@@ -908,7 +937,7 @@ function stringToUTF8Array(str, heap, outIdx, maxBytesToWrite) {
       heap[outIdx++] = 0x80 | (u & 63);
     } else {
       if (outIdx + 3 >= endIdx) break;
-      if (u >= 0x200000) warnOnce('Invalid Unicode code point 0x' + u.toString(16) + ' encountered when serializing a JS string to a UTF-8 string in wasm memory! (Valid unicode code points should be in range 0-0x1FFFFF).');
+      if (u > 0x10FFFF) warnOnce('Invalid Unicode code point 0x' + u.toString(16) + ' encountered when serializing a JS string to a UTF-8 string in wasm memory! (Valid unicode code points should be in range 0-0x10FFFF).');
       heap[outIdx++] = 0xF0 | (u >> 18);
       heap[outIdx++] = 0x80 | ((u >> 12) & 63);
       heap[outIdx++] = 0x80 | ((u >> 6) & 63);
@@ -1167,7 +1196,7 @@ function writeArrayToMemory(array, buffer) {
 /** @param {boolean=} dontAddNull */
 function writeAsciiToMemory(str, buffer, dontAddNull) {
   for (var i = 0; i < str.length; ++i) {
-    assert(str.charCodeAt(i) === str.charCodeAt(i)&0xff);
+    assert(str.charCodeAt(i) === (str.charCodeAt(i) & 0xff));
     HEAP8[((buffer++)>>0)] = str.charCodeAt(i);
   }
   // Null-terminate the pointer to the HEAP.
@@ -1254,8 +1283,8 @@ function writeStackCookie() {
   var max = _emscripten_stack_get_end();
   assert((max & 3) == 0);
   // The stack grows downwards
-  HEAPU32[(max >> 2)+1] = 0x2135467;
-  HEAPU32[(max >> 2)+2] = 0x89BACDFE;
+  HEAP32[((max + 4)>>2)] = 0x2135467
+  HEAP32[((max + 8)>>2)] = 0x89BACDFE
   // Also test the global address 0 for integrity.
   HEAP32[0] = 0x63736d65; /* 'emsc' */
 }
@@ -1263,8 +1292,8 @@ function writeStackCookie() {
 function checkStackCookie() {
   if (ABORT) return;
   var max = _emscripten_stack_get_end();
-  var cookie1 = HEAPU32[(max >> 2)+1];
-  var cookie2 = HEAPU32[(max >> 2)+2];
+  var cookie1 = HEAPU32[((max + 4)>>2)];
+  var cookie2 = HEAPU32[((max + 8)>>2)];
   if (cookie1 != 0x2135467 || cookie2 != 0x89BACDFE) {
     abort('Stack overflow! Stack cookie has been overwritten, expected hex dwords 0x89BACDFE and 0x2135467, but received 0x' + cookie2.toString(16) + ' ' + cookie1.toString(16));
   }
@@ -1458,18 +1487,19 @@ Module["preloadedAudios"] = {}; // maps url to audio data
 
 /** @param {string|number=} what */
 function abort(what) {
-  if (Module['onAbort']) {
-    Module['onAbort'](what);
+  {
+    if (Module['onAbort']) {
+      Module['onAbort'](what);
+    }
   }
 
-  what += '';
+  what = 'Aborted(' + what + ')';
+  // TODO(sbc): Should we remove printing and leave it up to whoever
+  // catches the exception?
   err(what);
 
   ABORT = true;
   EXITSTATUS = 1;
-
-  var output = 'abort(' + what + ') at ' + stackTrace();
-  what = output;
 
   // Use a wasm runtime error, because a JS error might be seen as a foreign
   // exception, which means we'd run destructors on it. We need the error to
@@ -1745,6 +1775,12 @@ function __asyncjs__do_fetch3(url,lenurl){ return Asyncify.handleAsync(async () 
       }
     }
 
+  function withStackSave(f) {
+      var stack = stackSave();
+      var ret = f();
+      stackRestore(stack);
+      return ret;
+    }
   function demangle(func) {
       warnOnce('warning: build with  -s DEMANGLE_SUPPORT=1  to link in libcxxabi demangling');
       return func;
@@ -1758,6 +1794,29 @@ function __asyncjs__do_fetch3(url,lenurl){ return Asyncify.handleAsync(async () 
           var y = demangle(x);
           return x === y ? x : (y + ' [' + x + ']');
         });
+    }
+
+  var wasmTableMirror = [];
+  function getWasmTableEntry(funcPtr) {
+      var func = wasmTableMirror[funcPtr];
+      if (!func) {
+        if (funcPtr >= wasmTableMirror.length) wasmTableMirror.length = funcPtr + 1;
+        wasmTableMirror[funcPtr] = func = wasmTable.get(funcPtr);
+      }
+      assert(wasmTable.get(funcPtr) == func, "JavaScript-side Wasm function table mirror is out of date!");
+      return func;
+    }
+
+  function handleException(e) {
+      // Certain exception types we do not treat as errors since they are used for
+      // internal control flow.
+      // 1. ExitStatus, which is thrown by exit()
+      // 2. "unwind", which is thrown by emscripten_unwind_to_js_event_loop() and others
+      //    that wish to return to JS event loop.
+      if (e instanceof ExitStatus || e == 'unwind') {
+        return EXITSTATUS;
+      }
+      quit_(1, e);
     }
 
   function jsStackTrace() {
@@ -1777,6 +1836,11 @@ function __asyncjs__do_fetch3(url,lenurl){ return Asyncify.handleAsync(async () 
       return error.stack.toString();
     }
 
+  function setWasmTableEntry(idx, func) {
+      wasmTable.set(idx, func);
+      wasmTableMirror[idx] = func;
+    }
+
   function stackTrace() {
       var js = jsStackTrace();
       if (Module['extraStackTrace']) js += '\n' + Module['extraStackTrace']();
@@ -1786,6 +1850,7 @@ function __asyncjs__do_fetch3(url,lenurl){ return Asyncify.handleAsync(async () 
   function __embind_register_bigint(primitiveType, name, size, minRange, maxRange) {}
 
   function getShiftFromSize(size) {
+      
       switch (size) {
           case 1: return 0;
           case 2: return 1;
@@ -2025,7 +2090,7 @@ function __asyncjs__do_fetch3(url,lenurl){ return Asyncify.handleAsync(async () 
       throwBindingError(getInstanceTypeName(obj) + ' instance already deleted');
     }
   
-  var finalizationGroup = false;
+  var finalizationRegistry = false;
   
   function detachFinalizer(handle) {}
   
@@ -2044,30 +2109,38 @@ function __asyncjs__do_fetch3(url,lenurl){ return Asyncify.handleAsync(async () 
       }
     }
   function attachFinalizer(handle) {
-      if ('undefined' === typeof FinalizationGroup) {
+      if ('undefined' === typeof FinalizationRegistry) {
           attachFinalizer = function (handle) { return handle; };
           return handle;
       }
-      // If the running environment has a FinalizationGroup (see
+      // If the running environment has a FinalizationRegistry (see
       // https://github.com/tc39/proposal-weakrefs), then attach finalizers
-      // for class handles.  We check for the presence of FinalizationGroup
+      // for class handles.  We check for the presence of FinalizationRegistry
       // at run-time, not build-time.
-      finalizationGroup = new FinalizationGroup(function (iter) {
-          for (var result = iter.next(); !result.done; result = iter.next()) {
-              var $$ = result.value;
-              if (!$$.ptr) {
-                  console.warn('object already deleted: ' + $$.ptr);
-              } else {
-                  releaseClassHandle($$);
-              }
-          }
+      finalizationRegistry = new FinalizationRegistry(function (info) {
+        console.warn(info.leakWarning.stack.replace(/^Error: /, ''));
+        releaseClassHandle(info.$$);
       });
       attachFinalizer = function(handle) {
-          finalizationGroup.register(handle, handle.$$, handle.$$);
-          return handle;
+        var $$ = handle.$$;
+        var info = { $$: $$ };
+        // Create a warning as an Error instance in advance so that we can store
+        // the current stacktrace and point to it when / if a leak is detected.
+        // This is more useful than the empty stacktrace of `FinalizationRegistry`
+        // callback.
+        var cls = $$.ptrType.registeredClass;
+        info.leakWarning = new Error("Embind found a leaked C++ instance " + cls.name + " <0x" + $$.ptr.toString(16) + ">.\n" +
+        "We'll free it automatically in this case, but this functionality is not reliable across various environments.\n" +
+        "Make sure to invoke .delete() manually once you're done with the instance instead.\n" +
+        "Originally allocated"); // `.stack` will add "at ..." after this sentence
+        if ('captureStackTrace' in Error) {
+          Error.captureStackTrace(info.leakWarning, cls.constructor);
+        }
+        finalizationRegistry.register(handle, info, handle);
+        return handle;
       };
       detachFinalizer = function(handle) {
-          finalizationGroup.unregister(handle.$$);
+          finalizationRegistry.unregister(handle);
       };
       return attachFinalizer(handle);
     }
@@ -2301,7 +2374,7 @@ function __asyncjs__do_fetch3(url,lenurl){ return Asyncify.handleAsync(async () 
                       var clonedHandle = handle['clone']();
                       ptr = this.rawShare(
                           ptr,
-                          __emval_register(function() {
+                          Emval.toHandle(function() {
                               clonedHandle['delete']();
                           })
                       );
@@ -2766,6 +2839,7 @@ function __asyncjs__do_fetch3(url,lenurl){ return Asyncify.handleAsync(async () 
     }
 
   function heap32VectorToArray(count, firstElement) {
+      
       var array = [];
       for (var i = 0; i < count; i++) {
           array.push(HEAP32[(firstElement >> 2) + i]);
@@ -2849,17 +2923,9 @@ function __asyncjs__do_fetch3(url,lenurl){ return Asyncify.handleAsync(async () 
       }
     }
   
-  function handleException(e) {
-      if (e instanceof ExitStatus || e === 'unwind') {
-        return;
-      }
-      // And actual unexpected user-exectpion occured
-      if (e && typeof e === 'object' && e.stack) err('exception thrown: ' + [e, e.stack]);
-      throw e;
-    }
   function callUserCallback(func, synchronous) {
-      if (ABORT) {
-        err('user callback triggered after application aborted.  Ignoring.');
+      if (runtimeExited || ABORT) {
+        err('user callback triggered after runtime exited or application aborted.  Ignoring.');
         return;
       }
       // For synchronous calls, let any exceptions propagate, and don't let the runtime exit.
@@ -2882,7 +2948,7 @@ function __asyncjs__do_fetch3(url,lenurl){ return Asyncify.handleAsync(async () 
       assert(runtimeKeepaliveCounter > 0);
       runtimeKeepaliveCounter -= 1;
     }
-  var Asyncify = {State:{Normal:0,Unwinding:1,Rewinding:2,Disabled:3},state:0,StackSize:4096,currData:null,handleSleepReturnValue:0,exportCallStack:[],callStackNameToId:{},callStackIdToName:{},callStackId:0,afterUnwind:null,asyncPromiseHandlers:null,sleepCallbacks:[],getCallStackId:function(funcName) {
+  var Asyncify = {State:{Normal:0,Unwinding:1,Rewinding:2,Disabled:3},state:0,StackSize:4096,currData:null,handleSleepReturnValue:0,exportCallStack:[],callStackNameToId:{},callStackIdToName:{},callStackId:0,asyncPromiseHandlers:null,sleepCallbacks:[],getCallStackId:function(funcName) {
         var id = Asyncify.callStackNameToId[funcName];
         if (id === undefined) {
           id = Asyncify.callStackId++;
@@ -2891,7 +2957,7 @@ function __asyncjs__do_fetch3(url,lenurl){ return Asyncify.handleAsync(async () 
         }
         return id;
       },instrumentWasmImports:function(imports) {
-        var ASYNCIFY_IMPORTS = ["env.invoke_*","env.emscripten_sleep","env.emscripten_wget","env.emscripten_wget_data","env.emscripten_idb_load","env.emscripten_idb_store","env.emscripten_idb_delete","env.emscripten_idb_exists","env.emscripten_idb_load_blob","env.emscripten_idb_store_blob","env.SDL_Delay","env.emscripten_scan_registers","env.emscripten_lazy_load_code","env.emscripten_fiber_swap","wasi_snapshot_preview1.fd_sync","env.__wasi_fd_sync","env._emval_await","env.dlopen","env.__asyncjs__*"].map(function(x) {
+        var ASYNCIFY_IMPORTS = ["env.invoke_*","env.emscripten_sleep","env.emscripten_wget","env.emscripten_wget_data","env.emscripten_idb_load","env.emscripten_idb_store","env.emscripten_idb_delete","env.emscripten_idb_exists","env.emscripten_idb_load_blob","env.emscripten_idb_store_blob","env.SDL_Delay","env.emscripten_scan_registers","env.emscripten_lazy_load_code","env.emscripten_fiber_swap","wasi_snapshot_preview1.fd_sync","env.__wasi_fd_sync","env._emval_await","env._dlopen_js","env.__asyncjs__*"].map(function(x) {
           return x.split('.')[1];
         });
         for (var x in imports) {
@@ -2903,13 +2969,24 @@ function __asyncjs__do_fetch3(url,lenurl){ return Asyncify.handleAsync(async () 
                 try {
                   return original.apply(null, arguments);
                 } finally {
-                  // Only functions in the list of known relevant imports are allowed to change the state.
-                  // Note that invoke_* functions are allowed to change the state if we do not ignore
-                  // indirect calls.
+                  // Only asyncify-declared imports are allowed to change the
+                  // state.
+                  var isAsyncifyImport = ASYNCIFY_IMPORTS.indexOf(x) >= 0 ||
+                                         x.startsWith('__asyncjs__');
+                  // Changing the state from normal to disabled is allowed (in any
+                  // function) as that is what shutdown does (and we don't have an
+                  // explicit list of shutdown imports).
+                  var changedToDisabled =
+                        originalAsyncifyState === Asyncify.State.Normal &&
+                        Asyncify.state        === Asyncify.State.Disabled;
+                  // invoke_* functions are allowed to change the state if we do
+                  // not ignore indirect calls.
+                  var ignoredInvoke = x.startsWith('invoke_') &&
+                                      true;
                   if (Asyncify.state !== originalAsyncifyState &&
-                      ASYNCIFY_IMPORTS.indexOf(x) < 0 &&
-                      !x.startsWith('__asyncjs__') &&
-                      !(x.startsWith('invoke_') && true)) {
+                      !isAsyncifyImport &&
+                      !changedToDisabled &&
+                      !ignoredInvoke) {
                     throw new Error('import ' + x + ' was not in ASYNCIFY_IMPORTS, but changed the state');
                   }
                 }
@@ -2952,10 +3029,6 @@ function __asyncjs__do_fetch3(url,lenurl){ return Asyncify.handleAsync(async () 
           runAndAbortIfError(Module['_asyncify_stop_unwind']);
           if (typeof Fibers !== 'undefined') {
             Fibers.trampoline();
-          }
-          if (Asyncify.afterUnwind) {
-            Asyncify.afterUnwind();
-            Asyncify.afterUnwind = null;
           }
         }
       },whenDone:function() {
@@ -3298,33 +3371,38 @@ function __asyncjs__do_fetch3(url,lenurl){ return Asyncify.handleAsync(async () 
       Module['count_emval_handles'] = count_emval_handles;
       Module['get_first_emval'] = get_first_emval;
     }
-  function __emval_register(value) {
-      switch (value) {
-        case undefined :{ return 1; }
-        case null :{ return 2; }
-        case true :{ return 3; }
-        case false :{ return 4; }
-        default:{
-          var handle = emval_free_list.length ?
-              emval_free_list.pop() :
-              emval_handle_array.length;
-  
-          emval_handle_array[handle] = {refcount: 1, value: value};
-          return handle;
-          }
+  var Emval = {toValue:function(handle) {
+        if (!handle) {
+            throwBindingError('Cannot use deleted val. handle = ' + handle);
         }
-    }
+        return emval_handle_array[handle].value;
+      },toHandle:function(value) {
+        switch (value) {
+          case undefined :{ return 1; }
+          case null :{ return 2; }
+          case true :{ return 3; }
+          case false :{ return 4; }
+          default:{
+            var handle = emval_free_list.length ?
+                emval_free_list.pop() :
+                emval_handle_array.length;
+    
+            emval_handle_array[handle] = {refcount: 1, value: value};
+            return handle;
+            }
+          }
+      }};
   function __embind_register_emval(rawType, name) {
       name = readLatin1String(name);
       registerType(rawType, {
           name: name,
           'fromWireType': function(handle) {
-              var rv = emval_handle_array[handle].value;
+              var rv = Emval.toValue(handle);
               __emval_decref(handle);
               return rv;
           },
           'toWireType': function(destructors, value) {
-              return __emval_register(value);
+              return Emval.toHandle(value);
           },
           'argPackAdvance': 8,
           'readValueFromPointer': simpleReadValueFromPointer,
@@ -3648,7 +3726,7 @@ function __asyncjs__do_fetch3(url,lenurl){ return Asyncify.handleAsync(async () 
     }
 
   function _abort() {
-      abort();
+      abort('native code called abort()');
     }
 
   function _emscripten_memcpy_big(dest, src, num) {
@@ -3695,11 +3773,13 @@ function __asyncjs__do_fetch3(url,lenurl){ return Asyncify.handleAsync(async () 
         return low;
       }};
   function _fd_write(fd, iov, iovcnt, pnum) {
+      ;
       // hack to support printf in SYSCALLS_REQUIRE_FILESYSTEM=0
       var num = 0;
       for (var i = 0; i < iovcnt; i++) {
-        var ptr = HEAP32[(((iov)+(i*8))>>2)];
-        var len = HEAP32[(((iov)+(i*8 + 4))>>2)];
+        var ptr = HEAP32[((iov)>>2)];
+        var len = HEAP32[(((iov)+(4))>>2)];
+        iov += 8;
         for (var j = 0; j < len; j++) {
           SYSCALLS.printChar(fd, HEAPU8[ptr+j]);
         }
@@ -3940,6 +4020,7 @@ if (!Object.getOwnPropertyDescriptor(Module, "setFileTime")) Module["setFileTime
 if (!Object.getOwnPropertyDescriptor(Module, "abortOnCannotGrowMemory")) Module["abortOnCannotGrowMemory"] = function() { abort("'abortOnCannotGrowMemory' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "emscripten_realloc_buffer")) Module["emscripten_realloc_buffer"] = function() { abort("'emscripten_realloc_buffer' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "ENV")) Module["ENV"] = function() { abort("'ENV' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
+if (!Object.getOwnPropertyDescriptor(Module, "withStackSave")) Module["withStackSave"] = function() { abort("'withStackSave' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "ERRNO_CODES")) Module["ERRNO_CODES"] = function() { abort("'ERRNO_CODES' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "ERRNO_MESSAGES")) Module["ERRNO_MESSAGES"] = function() { abort("'ERRNO_MESSAGES' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "setErrNo")) Module["setErrNo"] = function() { abort("'setErrNo' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
@@ -3957,7 +4038,6 @@ if (!Object.getOwnPropertyDescriptor(Module, "Sockets")) Module["Sockets"] = fun
 if (!Object.getOwnPropertyDescriptor(Module, "getRandomDevice")) Module["getRandomDevice"] = function() { abort("'getRandomDevice' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "traverseStack")) Module["traverseStack"] = function() { abort("'traverseStack' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "UNWIND_CACHE")) Module["UNWIND_CACHE"] = function() { abort("'UNWIND_CACHE' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
-if (!Object.getOwnPropertyDescriptor(Module, "withBuiltinMalloc")) Module["withBuiltinMalloc"] = function() { abort("'withBuiltinMalloc' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "readAsmConstArgsArray")) Module["readAsmConstArgsArray"] = function() { abort("'readAsmConstArgsArray' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "readAsmConstArgs")) Module["readAsmConstArgs"] = function() { abort("'readAsmConstArgs' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "mainThreadEM_ASM")) Module["mainThreadEM_ASM"] = function() { abort("'mainThreadEM_ASM' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
@@ -3970,6 +4050,9 @@ if (!Object.getOwnPropertyDescriptor(Module, "dynCallLegacy")) Module["dynCallLe
 if (!Object.getOwnPropertyDescriptor(Module, "getDynCaller")) Module["getDynCaller"] = function() { abort("'getDynCaller' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "dynCall")) Module["dynCall"] = function() { abort("'dynCall' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "callRuntimeCallbacks")) Module["callRuntimeCallbacks"] = function() { abort("'callRuntimeCallbacks' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
+if (!Object.getOwnPropertyDescriptor(Module, "wasmTableMirror")) Module["wasmTableMirror"] = function() { abort("'wasmTableMirror' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
+if (!Object.getOwnPropertyDescriptor(Module, "setWasmTableEntry")) Module["setWasmTableEntry"] = function() { abort("'setWasmTableEntry' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
+if (!Object.getOwnPropertyDescriptor(Module, "getWasmTableEntry")) Module["getWasmTableEntry"] = function() { abort("'getWasmTableEntry' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "handleException")) Module["handleException"] = function() { abort("'handleException' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "runtimeKeepalivePush")) Module["runtimeKeepalivePush"] = function() { abort("'runtimeKeepalivePush' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "runtimeKeepalivePop")) Module["runtimeKeepalivePop"] = function() { abort("'runtimeKeepalivePop' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
@@ -4035,7 +4118,6 @@ if (!Object.getOwnPropertyDescriptor(Module, "battery")) Module["battery"] = fun
 if (!Object.getOwnPropertyDescriptor(Module, "registerBatteryEventCallback")) Module["registerBatteryEventCallback"] = function() { abort("'registerBatteryEventCallback' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "setCanvasElementSize")) Module["setCanvasElementSize"] = function() { abort("'setCanvasElementSize' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "getCanvasElementSize")) Module["getCanvasElementSize"] = function() { abort("'getCanvasElementSize' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
-if (!Object.getOwnPropertyDescriptor(Module, "polyfillSetImmediate")) Module["polyfillSetImmediate"] = function() { abort("'polyfillSetImmediate' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "demangle")) Module["demangle"] = function() { abort("'demangle' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "demangleAll")) Module["demangleAll"] = function() { abort("'demangleAll' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "jsStackTrace")) Module["jsStackTrace"] = function() { abort("'jsStackTrace' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
@@ -4052,6 +4134,9 @@ if (!Object.getOwnPropertyDescriptor(Module, "readI53FromI64")) Module["readI53F
 if (!Object.getOwnPropertyDescriptor(Module, "readI53FromU64")) Module["readI53FromU64"] = function() { abort("'readI53FromU64' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "convertI32PairToI53")) Module["convertI32PairToI53"] = function() { abort("'convertI32PairToI53' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "convertU32PairToI53")) Module["convertU32PairToI53"] = function() { abort("'convertU32PairToI53' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
+if (!Object.getOwnPropertyDescriptor(Module, "setImmediateWrapped")) Module["setImmediateWrapped"] = function() { abort("'setImmediateWrapped' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
+if (!Object.getOwnPropertyDescriptor(Module, "clearImmediateWrapped")) Module["clearImmediateWrapped"] = function() { abort("'clearImmediateWrapped' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
+if (!Object.getOwnPropertyDescriptor(Module, "polyfillSetImmediate")) Module["polyfillSetImmediate"] = function() { abort("'polyfillSetImmediate' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "uncaughtExceptionCount")) Module["uncaughtExceptionCount"] = function() { abort("'uncaughtExceptionCount' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "exceptionLast")) Module["exceptionLast"] = function() { abort("'exceptionLast' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "exceptionCaught")) Module["exceptionCaught"] = function() { abort("'exceptionCaught' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
@@ -4106,7 +4191,7 @@ if (!Object.getOwnPropertyDescriptor(Module, "init_emval")) Module["init_emval"]
 if (!Object.getOwnPropertyDescriptor(Module, "count_emval_handles")) Module["count_emval_handles"] = function() { abort("'count_emval_handles' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "get_first_emval")) Module["get_first_emval"] = function() { abort("'get_first_emval' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "getStringOrSymbol")) Module["getStringOrSymbol"] = function() { abort("'getStringOrSymbol' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
-if (!Object.getOwnPropertyDescriptor(Module, "requireHandle")) Module["requireHandle"] = function() { abort("'requireHandle' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
+if (!Object.getOwnPropertyDescriptor(Module, "Emval")) Module["Emval"] = function() { abort("'Emval' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "emval_newers")) Module["emval_newers"] = function() { abort("'emval_newers' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "craftEmvalAllocator")) Module["craftEmvalAllocator"] = function() { abort("'craftEmvalAllocator' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "emval_get_global")) Module["emval_get_global"] = function() { abort("'emval_get_global' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
@@ -4165,7 +4250,7 @@ if (!Object.getOwnPropertyDescriptor(Module, "RegisteredPointer_deleteObject")) 
 if (!Object.getOwnPropertyDescriptor(Module, "RegisteredPointer_fromWireType")) Module["RegisteredPointer_fromWireType"] = function() { abort("'RegisteredPointer_fromWireType' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "runDestructor")) Module["runDestructor"] = function() { abort("'runDestructor' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "releaseClassHandle")) Module["releaseClassHandle"] = function() { abort("'releaseClassHandle' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
-if (!Object.getOwnPropertyDescriptor(Module, "finalizationGroup")) Module["finalizationGroup"] = function() { abort("'finalizationGroup' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
+if (!Object.getOwnPropertyDescriptor(Module, "finalizationRegistry")) Module["finalizationRegistry"] = function() { abort("'finalizationRegistry' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "detachFinalizer_deps")) Module["detachFinalizer_deps"] = function() { abort("'detachFinalizer_deps' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "detachFinalizer")) Module["detachFinalizer"] = function() { abort("'detachFinalizer' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
 if (!Object.getOwnPropertyDescriptor(Module, "attachFinalizer")) Module["attachFinalizer"] = function() { abort("'attachFinalizer' was not exported. add it to EXPORTED_RUNTIME_METHODS (see the FAQ)") };
