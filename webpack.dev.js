@@ -10,7 +10,7 @@ const plugins = [
 
 module.exports = merge(common, {
 
-    mode: "development",
+    mode: "production",
     plugins: plugins.concat(new NodemonPlugin({
         nodeArgs: ["--inspect=0.0.0.0:3004", ["--experimental-worker --experimental-wasi-unstable-preview1 --experimental-vm-modules --experimental-wasm-threads --experimental-wasm-bulk-memory "]]
     }))

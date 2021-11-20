@@ -50,9 +50,15 @@ function jsMethodAgrs(title, msg) {
   return "this is sent from JS host "
 }
 
-global.jsMethodAgrs =jsMethodAgrs
+const sqlHelper = require("./db/sql").default
+const db_run = async () => {
+  const db = await sqlHelper.init("zxc")
+  console.log("db-wasm-layer", db)
+  const results = await sqlHelper.db_exec(db,"SELECT * FROM hello")
+  console.log("wasm_db", results )
+}
 
-
+db_run()
 
 module.exports = {
   run: ({ req }) => {

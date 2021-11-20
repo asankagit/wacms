@@ -11,6 +11,7 @@ const HookShellScriptPlugin = require('hook-shell-script-webpack-plugin');
 // or 
 const WebpackShellPluginNext = require('webpack-shell-plugin-next');
 const nodeExternals = require('webpack-node-externals');
+const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 
 module.exports = {
   name: "Logger",
@@ -33,9 +34,31 @@ module.exports = {
     port: "8090",
     hot: true,
   },
-  mode: "development",
+  mode: "production",
   module: {
-    rules: []
+    // noParse:  /dist\/wasm_db.generated.js/,
+    rules: [
+      {
+        test: /\.js$/,
+        loader: "babel-loader",
+        options: {
+            presets: [
+                ["@babel/preset-env", 
+                // {
+                //     targets: {
+                //         node: "9.5"
+                //     }
+                // }
+                ]
+            ],
+            plugins: [
+              "@babel/plugin-proposal-object-rest-spread",
+              "@babel/plugin-proposal-class-properties"
+            ]
+        },
+        exclude: [/node_modules/]
+    }
+    ]
   },
   experiments: {
     asyncWebAssembly: true
@@ -57,7 +80,9 @@ module.exports = {
     }),
     new webpack.ProvidePlugin({
       'fetch': ['node-fetch', 'default'],
-      'ASM_JS': path.resolve(__dirname, './emscripten_mini.js')
+      'ASM_JS': path.resolve(__dirname, './emscripten_mini.js'),
+      // 'wasm_db':  ['./dist/wasm_db.generated.js', 'SqlHelper'],
+      // sql: './dist/wasm_db.generated.js'
     })
   ]
 }

@@ -10,10 +10,16 @@ const HookShellScriptPlugin = require('hook-shell-script-webpack-plugin');
 // or 
 const WebpackShellPluginNext = require('webpack-shell-plugin-next');
 const nodeExternals = require('webpack-node-externals');
+const webpack = require("webpack");
+const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 
 module.exports = {
   name: "server",
-  entry: {"server": "./src/server/server.js", "worker":"./src/server/worker.js", wasmer: "./src/tmp/wasmer.js" },
+  entry: {
+    "server": "./src/server/server.js",
+    "worker":"./src/server/worker.js",
+    wasmer: "./src/tmp/wasmer.js"
+  },
   output: {
     path: path.resolve(__dirname, "dist"),
     filename: "[name].generated.js",
@@ -29,8 +35,9 @@ module.exports = {
     port: "8090",
     hot: true,
   },
-  mode: "development",
+  mode: "production",
   module: {
+    // noParse: path.resolve(__dirname, './node_modules/sql.js/dist/sql-wasm.js'),
     rules: [
       // Emscripten JS files define a global. With `exports-loader` we can 
       // load these files correctly (provided the global’s name is the same
@@ -56,6 +63,8 @@ module.exports = {
     // new HookShellScriptPlugin({
     //   afterEmit: ['clear']
     // }),
+    new CleanWebpackPlugin(),
+    // new CleanWebpackPlugin(["./dist/*"])
     new CopyWebpackPlugin({
       patterns: [
         { from: "src/tmp/*.wasm", to: path.resolve(__dirname, "dist/[name].wasm")}
