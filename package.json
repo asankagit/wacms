@@ -39,7 +39,8 @@
     "request": "^2.79.0",
     "sql-wasm": "^1.1.4",
     "sql.js": "^1.6.2",
-    "wasi": "0.0.6"
+    "wasi": "0.0.6",
+    "workerpool": "^6.1.5"
   },
   "devDependencies": {
     "@babel/core": "^7.16.0",

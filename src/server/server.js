@@ -3,13 +3,37 @@ const app = express()
 const port = 3000
 import { isMainThread, Worker, parentPort, workerData } from "worker_threads"
 import { performance,  PerformanceObserver } from 'perf_hooks'
+const workerpool = require('workerpool');
+
+const pool = workerpool.pool(`./wafunctions/zxc/dist/wasmer_host_function.generated.js`)
+
+const runWorkers = (req) => {
+  console.log("innner lof,", req)
+  pool.exec('fibonacci', [req])
+    .then((result) => {
+      console.log({ result })
+    })
+    .catch((err) => {
+      console.log(err)
+    })
+    //
+}
+
+
 
 app.get('/', (req, res) => {
+  console.log("/")
   res.send('Hello World!')
 })
 
+app.use('/worker', (req, res) => {
+  const { params, body, query, method, ...rest } = req
+  runWorkers({ params, body, query, method })
+  res.send("")
+})
 // app.get("/wasm/:wafuz", 
 const wasmInvokeFun = (req,res) => {
+  console.log(" inside wasm worker")
     const { params: { wafuz } } = req
     const workers = []
 
@@ -49,13 +73,14 @@ const wasmInvokeFun = (req,res) => {
 }
 // )
 
-const wrapped = performance.timerify(wasmInvokeFun);
+// const wrapped = performance.timerify(wasmInvokeFun);
 
-const obs = new PerformanceObserver((list) => {
-  console.log("duration", list.getEntries()[0].duration);
-  obs.disconnect();
-});
-obs.observe({ entryTypes: ['function'] });
+// const obs = new PerformanceObserver((list) => {
+//   console.log("duration", list.getEntries()[0].duration);
+//   obs.disconnect();
+// });
+// obs.observe({ entryTypes: ['function'] });
+
 app.get("/wasm/:wafuz", wasmInvokeFun /*wrapped*/)
 
 app.listen(port, () => {
