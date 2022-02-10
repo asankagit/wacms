@@ -4,11 +4,20 @@ const port = 3000
 import { isMainThread, Worker, parentPort, workerData } from "worker_threads"
 import { performance,  PerformanceObserver } from 'perf_hooks'
 const workerpool = require('workerpool');
+const statusMonitor = require('express-status-monitor');
 
 const pool = workerpool.pool(`./wafunctions/zxc/dist/wasmer_host_function.generated.js`)
 
+const memoryStatlogger = (req, res, next) => {
+  const heapUsed = process.memoryUsage().heapUsed / 1024 / 1024; // MB
+  const rss = process.memoryUsage()
+  console.log(
+    heapUsed,
+);
+  next()
+}
 const runWorkers = (req) => {
-  console.log("innner lof,", req)
+  // console.log("innner lof-,", req)
   pool.exec('fibonacci', [req])
     .then((result) => {
       console.log({ result })
@@ -20,6 +29,8 @@ const runWorkers = (req) => {
 }
 
 
+app.use(statusMonitor());
+app.use(memoryStatlogger);
 
 app.get('/', (req, res) => {
   console.log("/")
@@ -33,7 +44,6 @@ app.use('/worker', (req, res) => {
 })
 // app.get("/wasm/:wafuz", 
 const wasmInvokeFun = (req,res) => {
-  console.log(" inside wasm worker")
     const { params: { wafuz } } = req
     const workers = []
 
@@ -41,9 +51,7 @@ const wasmInvokeFun = (req,res) => {
             // console.log("callbakc", data)
             // workers[0].postMessage("fire")
             // workers[1].postMessage("fire")
-
-            // console.log(">>>", { data })
-            res.send(data)
+            res.send({ data })
 
             workers[0].removeListener("message", callback)
             // workers[1].removeListener("message", callback)
@@ -68,7 +76,7 @@ const wasmInvokeFun = (req,res) => {
         setTimeout(() => { 
           workers[0].terminate()
           // workers[1].terminate()
-        }, 3000)
+        }, 30000)
         // res.send("ok")
 }
 // )

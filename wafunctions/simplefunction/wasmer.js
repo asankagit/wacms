@@ -18,7 +18,6 @@ class Request {
     }
   }
   start = () => {
-
     ASM_JS['onRuntimeInitialized'] = async  () => {
         ASM_JS.my_fetch_res = ""
         const clz = new ASM_JS.SubClass();
@@ -26,7 +25,7 @@ class Request {
         clz.setContext(JSON.stringify(this.req()))
         const response = await clz.getCallback()
         responseEmitter.emit("wasm_response", response)
-        clz.delete();
+        clz.delete()
     }
   }
 

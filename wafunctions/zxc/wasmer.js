@@ -18,7 +18,6 @@ class Request {
     }
   }
   start = () => {
-
     ASM_JS['onRuntimeInitialized'] = async  () => {
         ASM_JS.my_fetch_res = ""
         const clz = new ASM_JS.SubClass();
@@ -50,15 +49,15 @@ function jsMethodAgrs(title, msg) {
   return "this is sent from JS host "
 }
 
-const sqlHelper = require("./db/sql").default
-const db_run = async () => {
-  const db = await sqlHelper.init("zxc")
-  console.log("db-wasm-layer", db)
-  const results = await sqlHelper.db_exec(db,"SELECT * FROM hello")
-  console.log("wasm_db", results )
-}
-
-db_run()
+// const sqlHelper = require("./db/sql").default
+// const db_run = async () => {
+//   const db = await sqlHelper.init("zxc")
+//   console.log("db-wasm-layer", db)
+//   const results = await sqlHelper.db_exec(db,"SELECT * FROM hello")
+//   console.log("wasm_db", results )
+// }
+//@tmpary stop db calls
+// db_run()/  
 
 module.exports = {
   run: ({ req }) => {
