@@ -4,7 +4,7 @@
 
 using namespace emscripten;
 
-EM_ASYNC_JS(char*, do_fetch3, (const char *url, int lenurl), {
+EM_ASYNC_JS(char*, wafuz_fetch, (const char *url, int lenurl), {
   out("waiting for a fetch");
   call_mine(UTF8ToString(url, lenurl));
   const response = await fetch(UTF8ToString(url, lenurl)).then(res => res.buffer())
@@ -25,7 +25,7 @@ public:
     static std::string fetch(std::string url)
     {
         // std::string url = "http://api.plos.org/search?q=title:DNA";
-        const char *s = do_fetch3(url.c_str(), url.length());    
+        const char *s = wafuz_fetch(url.c_str(), url.length());    
         std::string str(s); 
         printf("base print\n");
         return str;

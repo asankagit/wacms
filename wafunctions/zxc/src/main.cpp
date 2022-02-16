@@ -51,7 +51,7 @@ public:
 
   std::string callback() {
     std::string url = "http://api.plos.org/search?q=title:DNA";
-    const char *s = do_fetch(url.c_str(), url.length());    
+    const char *s = wafuz_fetch(url.c_str(), url.length());    
     std::string str(s);
     // printf("do_fetch_response %d \n ", str.length());
     // printf("do_fetch_response %s ", this->context.c_str());
